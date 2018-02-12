@@ -1,7 +1,0 @@
-"0","roundOrientation = function(angles) {"
-"0","  refs = seq(0, by = 45, length  = 9)"
-"0","  q = sapply(angles, function(o) which.min(abs(o - refs)))"
-"0","  c(refs[1:8], 0)[q]"
-"0","}"
-"0","offline$angle = roundOrientation(offline$orientation)"
-"0","pdf(file = ""Geo_BoxplotAngle.pdf"", width = 10)"

@@ -1,8 +1,0 @@
-"0"," "
-"0","oneAPAngle = subset(offlineSummary, "
-"0","                    mac == subMacs[5] & angle == 0)"
-"0","library(fields)"
-"0","smoothSS = Tps(oneAPAngle[, c(""posX"",""posY"")], "
-"0","               oneAPAngle$avgSignal)"
-"0","vizSmooth = predictSurface(smoothSS)"
-"0","plot.surface(vizSmooth, type = ""C"")"

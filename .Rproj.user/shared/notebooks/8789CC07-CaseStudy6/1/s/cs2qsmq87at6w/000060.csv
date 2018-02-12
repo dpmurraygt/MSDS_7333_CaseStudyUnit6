@@ -1,5 +1,0 @@
-"0","oldPar = par(mar = c(4.1, 4.1, 1, 1))"
-"0","with(offlineSummary,"
-"0","     smoothScatter((avgSignal - medSignal) ~ num,"
-"0","                   xlab = ""Number of Observations"", "
-"0","                   ylab = ""mean - median""))"

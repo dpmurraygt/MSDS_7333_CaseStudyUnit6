@@ -14,31 +14,47 @@ library(lattice)
 
 ```{r}
 #This is the code from Nolan and Lang Chapter 1
+
+#Set the number of digits printed for numeric values
 options(digits = 2)
 
+#Read in the text file to a matrix called txt
+#it's essentially a blob of data
 txt = readLines("Data/offline.final.trace.txt")
 
+#get a count of lines that have a # in the first character location 
 sum(substr(txt, 1, 1) == "#")
 
+#total lines in the txt matrix
 length(txt)
 
+#strsplit the 4th line on semicolons, print to screen
 strsplit(txt[4], ";")[[1]]
 
+#store results of string of the 4th line to a vector
 tokens = strsplit(txt[4], "[;=,]")[[1]]
 
+#print tokens 1:10 to screen
 tokens[1:10]
 
+#extract the 2nd, 4th, 6:8 and 10th elements to the screen
 tokens[c(2, 4, 6:8, 10)]
 
+#show everything from tokens except elements 1:10 
 tokens[ - ( 1:10 ) ]
 
+#assign a matrix of everything except elements 1:10 to a 4 coloumn matrix called tmp
 tmp = matrix(tokens[ - (1:10) ], ncol = 4, byrow = TRUE)
+#column bind a matrix of selected elements from tokens in the shape of 6 columns by nrow tmp
 mat = cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow = nrow(tmp),
                    ncol = 6, byrow = TRUE), 
             tmp)
 
+#print shape of mat to screen
 dim(mat)
 
+#create a function based on what we figured out above called processLine
+#takes as input a line, and then return a matrix
 processLine =
 function(x)
 {
@@ -48,20 +64,28 @@ function(x)
                ncol = 6, byrow = TRUE), tmp)
 }
 
+#Use the function processLine through a list apply on lines 4:20 from txt and store to a list called tmp 
 tmp = lapply(txt[4:20], processLine)
 
+#use sapply (preserves dimmensions tmp) to show the number of rows in each row in tmp
 sapply(tmp, nrow)
 
+#make a data frame called offline from row binding tmp
 offline = as.data.frame(do.call("rbind", tmp))
 dim(offline)
 
+#create a list called lines that contains the lines that don't start with a # 
 lines = txt[ substr(txt, 1, 1) != "#" ]
+
+#apply function processLine to all lines in lines and store to tmp
 tmp = lapply(lines, processLine)
+
+#redefine processLine, this time with a conditional statement for the length of tokens
 
 processLine = function(x)
 {
   tokens = strsplit(x, "[;=,]")[[1]]
-  
+  #if the length of tokens is 10, this function returns nothing  
   if (length(tokens) == 10) 
     return(NULL)
  
@@ -70,19 +94,27 @@ processLine = function(x)
                byrow = TRUE), tmp)
 }
 
+#set some global options
 options(error = recover, warn = 1)
+
+#list apply of function processLine to lines
 tmp = lapply(lines, processLine)
+
+#make a data frame of results of rbinding the tmp's together
 offline = as.data.frame(do.call("rbind", tmp), 
                         stringsAsFactors = FALSE)
 
 dim(offline)
 
+#name the fields in the data frame.  You couldn't have done this earlier to help us out in seeing what's in the df?
 names(offline) = c("time", "scanMac", "posX", "posY", "posZ", 
                    "orientation", "mac", "signal", 
                    "channel", "type")
 
+#this is a vector of the numeric variables from offline dataframe
 numVars = c("time", "posX", "posY", "posZ", 
             "orientation", "signal")
+#list apply to change data type
 offline[ numVars ] =  lapply(offline[ numVars ], as.numeric)
 
 offline = offline[ offline$type == "3", ]
