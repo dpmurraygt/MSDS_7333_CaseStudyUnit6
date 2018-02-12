@@ -12,7 +12,7 @@ library(lattice)
 
 ```
 
-```{r}
+```{r data_cleanup}
 #This is the code from Nolan and Lang Chapter 1
 options(digits = 2)
 setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
@@ -295,8 +295,9 @@ identical(offline, offlineRedo)
 # what variables did we use as global? these our are dependencies
 library(codetools)
 findGlobals(readData, merge =FALSE)$variables
+```
 
-
+```{r eda}
 # INVESTIGATING SIGNAL STRENGTH
 
 pdf(file = "Geo_BoxplotSignalByMacAngle.pdf", width = 7)
@@ -472,9 +473,10 @@ xyplot(signal ~ dist | factor(mac) + factor(angle),
 par(oldPar)
 dev.off()
 
+```
 
+```{r knn_work}
 
-# KNN START
 # using only signals to APs from previously trained locations
 # need to reformat data so signal strength is across columns
 
@@ -557,7 +559,7 @@ reshapeSS = function(data, varSignal = "signal",
 
 trainSS = reshapeSS(offlineSubset, varSignal = "avgSignal")
 
-# wrap code to s elect angles and reshape the training set
+# wrap code to select angles and reshape the training set
 # takes angle of new observation and associated angles from dataset via m given an offline set signals
 selectTrain = function(angleNewObs, signals = NULL, m = 1){
   # m is the number of angles to keep between 1 and 5
@@ -593,6 +595,7 @@ length(train130[[1]])
 
 
 
+
 # FINDING NEAREST NEIGHBORS
 # takes numeric vector of 6 signal strengths and result of selectTrain()
 findNN = function(newSignal, trainSubset) {
@@ -615,16 +618,15 @@ findWtdNN = function(newSignal, trainSubset) {
   return(cbind(closeXY, weight) )
 }
 
-
+# prediction using nearest neighbors from training set
 predXY = function(newSignals, newAngles, trainData, 
                   numAngles = 1, k = 3){
   
   closeXY = list(length = nrow(newSignals))
   
   for (i in 1:nrow(newSignals)) {
-    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
-    closeXY[[i]] = 
-      findNN(newSignal = as.numeric(newSignals[i, ]), trainSS)
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of close angles
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS)
   }
   estXY = lapply(closeXY, 
                  function(x) sapply(x[ , 2:3], 
@@ -635,17 +637,16 @@ predXY = function(newSignals, newAngles, trainData,
 
 
 predXYwtd = function(newSignals, newAngles, trainData, 
-                  numAngles = 1, k = 3){
+                     numAngles = 1, k = 3){
   
   closeXY = list(length = nrow(newSignals))
   
   for (i in 1:nrow(newSignals)) {
     trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
-    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS)
-    # calculate weights, append zero array for delta of len-k
-    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k)) 
-    base[,2:3] = base[, 2:3]*wts
-    closeXY[[i]] = base[,1:3]
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y,weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights, append zero array for delta of len-k
+    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals ready to sum in lapply() below
+    closeXY[[i]] = base[,1:3] # append adjusted x,y values
   }
   estXY = lapply(closeXY, 
                  function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now
@@ -672,8 +673,10 @@ estXYk5 = predXY(newSignals = onlineSummary[ , 6:11],
 estXYk5wtd = predXYwtd(newSignals = onlineSummary[ , 6:11], 
                  newAngles = onlineSummary[ , 4], 
                  offlineSummary, numAngles = 3, k = 5)
+```
 
 
+```{r error_checking}
 floorErrorMap = function(estXY, actualXY, trainPoints = NULL, AP = NULL){
   
     plot(0, 0, xlim = c(0, 35), ylim = c(-3, 15), type = "n",
@@ -845,3 +848,5 @@ predXY = function(newSignals, newAngles, trainData,
 }
 
 ```
+
+
