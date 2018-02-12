@@ -4,7 +4,7 @@ output: html_notebook
 ---
 
 
-```{r}
+```{r import, echo=FALSE}
 library(tidyr)
 library(dplyr)
 library(fields)
@@ -12,7 +12,7 @@ library(lattice)
 
 ```
 
-```{r data_cleanup}
+```{r data_cleanup, echo=FALSE}
 #This is the code from Nolan and Lang Chapter 1
 options(digits = 2)
 setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
@@ -297,7 +297,7 @@ library(codetools)
 findGlobals(readData, merge =FALSE)$variables
 ```
 
-```{r eda}
+```{r eda, echo=FALSE}
 # INVESTIGATING SIGNAL STRENGTH
 
 pdf(file = "Geo_BoxplotSignalByMacAngle.pdf", width = 7)
@@ -475,7 +475,7 @@ dev.off()
 
 ```
 
-```{r knn_work}
+```{r knn_work, echo=FALSE}
 
 # using only signals to APs from previously trained locations
 # need to reformat data so signal strength is across columns
@@ -676,7 +676,7 @@ estXYk5wtd = predXYwtd(newSignals = onlineSummary[ , 6:11],
 ```
 
 
-```{r error_checking}
+```{r error_checking, echo=FALSE}
 floorErrorMap = function(estXY, actualXY, trainPoints = NULL, AP = NULL){
   
     plot(0, 0, xlim = c(0, 35), ylim = c(-3, 15), type = "n",
