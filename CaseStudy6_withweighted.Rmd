@@ -679,6 +679,7 @@ calcError =
 function(estXY, actualXY) 
    sum( rowSums( (estXY - actualXY)^2) )
 
+sapply(list(estXYk1, estXYk3, estXYk3wtd))
 
 # testing without CV folds, full test set, takes about 2 minutes
 error_mean_vec = c()
@@ -713,7 +714,6 @@ ggplot()+
   ggtitle('Learning Curve given K')+
   labs(y="error")
 
-sapply(list(estXYk1, estXYk3, estXYk3wtd, estXYk5, estXYk5wtd), calcError, actualXY)
 
 ```
 
