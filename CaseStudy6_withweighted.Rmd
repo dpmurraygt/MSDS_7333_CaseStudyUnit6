@@ -517,9 +517,11 @@ dim(onlineSummary)
 # rename
 names(onlineSummary)
 
+# ANGLE ALIGNMENT
 # want to find records in offline data (training) that have similar orientations to our new observations
-# orientation CAN impact signal strength as already evidenced visually
+# orientation CAN impact signal strength as already evidenced visually in boxplots
 
+# finding nearest angles to help filter training data before aggregation:
 m = 3; angleNewObs = 230
 refs = seq(0, by = 45, length  = 8)
 nearestAngle = roundOrientation(angleNewObs)
@@ -560,12 +562,15 @@ reshapeSS = function(data, varSignal = "signal",
   return(newDataSS)
 }
 
+# build all of this into a funciton
 trainSS = reshapeSS(offlineSubset, varSignal = "avgSignal")
 
 # wrap code to select angles and reshape the training set
-# takes angle of new observation and associated angles from dataset via m given an offline set signals
+# takes angle of new observation and associated angles from dataset using m
+# angleNewObs sets reference point
+# m is the number of angles to keep between 1 and 5 around reference point
+# signals is the training dataset to filter and reshape
 selectTrain = function(angleNewObs, signals = NULL, m = 1){
-  # m is the number of angles to keep between 1 and 5
   refs = seq(0, by = 45, length  = 8)
   nearestAngle = roundOrientation(angleNewObs)
   
@@ -588,8 +593,9 @@ selectTrain = function(angleNewObs, signals = NULL, m = 1){
   reshapeSS(offlineSubset, varSignal = "avgSignal")
 }
 
-# use angle of 130 for offline summary taking 130 and two closest angles for training set
-# reshape
+# example
+# use angle of 130 for offline summary taking 135 and two closest angles for training set
+# reshape by aggregating, taking average of signals for each mac, angles considered
 train130 = selectTrain(130, offlineSummary, m = 3)
 
 head(train130)
@@ -600,25 +606,25 @@ length(train130[[1]])
 
 
 # FINDING NEAREST NEIGHBORS
-# takes numeric vector of 6 signal strengths and result of selectTrain()
+# takes numeric vector of 6 new signal strengths and result of selectTrain() training set
 findNN = function(newSignal, trainSubset) {
   diffs = apply(trainSubset[ , 4:9], 1, 
                 function(x) x - newSignal) # this inverts, places x,y on cols when called as.numeric
   dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) # this gets our distance (euclidean)
-  closest = order(dists) #(orders them ascending)
-  return(trainSubset[closest, 1:3 ]) # returns the subset from training with closest distances, gives x,y
+  closest = order(dists) # orders our distances in ascending
+  return(trainSubset[closest, 1:3 ]) # returns the subset from training with closest distances, gives xy ID, x, y
 }
 
 
 # weighted nearest neighbors, returns numerator of weight 1/distance
 findWtdNN = function(newSignal, trainSubset) {
   diffs = apply(trainSubset[ , 4:9], 1, 
-                function(x) x - newSignal) # this inverts, places x,y on cols when called as.numeric
-  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) # this gets our distance (euclidean)
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
   closest = order(dists) # orders distances ascending
   closeXY = trainSubset[closest, 1:3 ]
-  weight = as.numeric(1/dists[closest])
-  return(cbind(closeXY, weight) )
+  weight = as.numeric(1/dists[closest]) # calculate numerator for weights, we'll filter these based on K in predXY
+  return(cbind(closeXY, weight)) # add in numerator for our weights
 }
 
 # prediction using nearest neighbors from training set
@@ -628,13 +634,13 @@ predXY = function(newSignals, newAngles, trainData,
   closeXY = list(length = nrow(newSignals))
   
   for (i in 1:nrow(newSignals)) {
-    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of close angles
-    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS)
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of angles in proximity
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # find nearest neighbors, return closest in training set
   }
-  estXY = lapply(closeXY, 
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
                  function(x) sapply(x[ , 2:3], 
-                                    function(x) mean(x[1:k])))
-  estXY = do.call("rbind", estXY)
+                                    function(x) mean(x[1:k]))) # take a simple average of x,y positions
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
   return(estXY)
 }
 
@@ -646,20 +652,22 @@ predXYwtd = function(newSignals, newAngles, trainData,
   
   for (i in 1:nrow(newSignals)) {
     trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
-    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y,weights
-    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights, append zero array for delta of len-k
-    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals ready to sum in lapply() below
-    closeXY[[i]] = base[,1:3] # append adjusted x,y values
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals
+    closeXY[[i]] = base[,1:3] # append weighted xy, x, y values to list
   }
-  estXY = lapply(closeXY, 
-                 function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now
-  estXY = do.call("rbind", estXY)
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now, and x,y is already weighted!
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
   return(estXY)
 }
 ```
 
 ```{r knnsummary}
 
+# this is testing on the test set... not optimal, validation is in the next section
+# we are also using 3 angles to aggregate and average for our training set to compare to
 estXYk1 = predXY(newSignals = onlineSummary[ , 6:11], 
                  newAngles = onlineSummary[ , 4], 
                  offlineSummary, numAngles = 3, k = 1)
@@ -682,6 +690,7 @@ function(estXY, actualXY)
 sapply(list(estXYk1, estXYk3, estXYk3wtd))
 
 # testing without CV folds, full test set, takes about 2 minutes
+# this is not proper error testing! 
 error_mean_vec = c()
 error_wtd_vec = c()
 
@@ -706,6 +715,8 @@ for (i in seq(1,20,2)){
 
 # visualize learning curve based on squared error, iterating over K
 df = as_data_frame(cbind(error_mean_vec, error_wtd_vec, k=seq(1,20,2)))
+
+# plot learning curve
 library(ggplot2)
 df %>%
 ggplot()+
@@ -715,10 +726,7 @@ ggplot()+
   labs(y="error")
 
 
-```
-
-
-```{r cross_validation, echo=FALSE}
+# show errors on the floor
 floorErrorMap = function(estXY, actualXY, trainPoints = NULL, AP = NULL){
   
     plot(0, 0, xlim = c(0, 35), ylim = c(-3, 15), type = "n",
@@ -755,15 +763,26 @@ floorErrorMap(estXYk1, onlineSummary[ , c("posX","posY")],
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
 dev.off()
+```
 
 
+```{r cross_validation, echo=FALSE}
+# cross validate over each location, using all 8 orientations and 6 MAC addresses
+# each fold has 166/11 = 15 locations
+# must randomly select
 v = 11
+# permute locations
 permuteLocs = sample(unique(offlineSummary$posXY))
+
+# to calculate folds, build a matrix with 11 columns and ~15 locations each
 permuteLocs = matrix(permuteLocs, ncol = v, 
                      nrow = floor(length(permuteLocs)/v))
 
+# get the first validation fold from our offline data
 onlineFold = subset(offlineSummary, posXY %in% permuteLocs[ , 1])
 
+# must re-summarize each fold to match onlineSummary format
+# selecting orientation at random to create our CV folds
 reshapeSS = function(data, varSignal = "signal", 
                      keepVars = c("posXY", "posX","posY"),
                      sampleAngle = FALSE, 
@@ -785,27 +804,36 @@ reshapeSS = function(data, varSignal = "signal",
   return(newDataSS)
 }
 
+# exclude MAC
 offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
 
 keepVars = c("posXY", "posX","posY", "orientation", "angle")
 
+# build CV base from offline data in general
 onlineCVSummary = reshapeSS(offline, keepVars = keepVars, 
                             sampleAngle = TRUE)
 
+# an example of one fold
 onlineFold = subset(onlineCVSummary, 
                     posXY %in% permuteLocs[ , 1])
 
+# this is our training set
 offlineFold = subset(offlineSummary,
                      posXY %in% permuteLocs[ , -1])
 
-estFold = predXYwtd(newSignals = onlineFold[ , 6:11], 
+# using both methods with k = 3
+estFold = predXY(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+estFoldwtd = predXYwtd(newSignals = onlineFold[ , 6:11], 
                  newAngles = onlineFold[ , 4], 
                  offlineFold, numAngles = 3, k = 3)
 
 actualFold = onlineFold[ , c("posX", "posY")]
-calcError(estFold, actualFold)
+calcError(estFoldwtd, actualFold)
 
-# NOW WITH WEIGHTED COMPARISON
+# formally test K out to 20
 K = 20
 err = rep(0, K)
 err_wtd = rep(0,K) # weighted error
@@ -845,6 +873,9 @@ kMin = which(err == rmseMin)[1]
 rmseMin_wtd = min(err_wtd)
 kMin_wtd = which(err_wtd == rmseMin_wtd)[1]
 
+```
+
+```{r addtl, echo=FALSE}
 # additional code not in book:
 
 segments(x0 = 0, x1 = kMin, y0 = rmseMin, col = gray(0.4), 
