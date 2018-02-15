@@ -51,7 +51,7 @@ library(lattice)
 ```{r data_cleanup, echo=FALSE}
 #This is the code from Nolan and Lang Chapter 1
 options(digits = 2)
-setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
+#setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
 
 # Read in the text file to a matrix called txt
 txt = readLines("Data/offline.final.trace.txt")
@@ -951,5 +951,4 @@ predXY = function(newSignals, newAngles, trainData,
 }
 
 ```
-
 

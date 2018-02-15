@@ -1,0 +1,4 @@
+"0","# make 4 calls, shows corridor effect, signal strength of course strongest closest to AP"
+"0","mapply(surfaceSS, mac = subMacs[ rep(c(5, 1,2), each = 2) ], "
+"0","       angle = rep(c(0, 135, 180), 2),"
+"0","       data = list(data = offlineSummary))"
