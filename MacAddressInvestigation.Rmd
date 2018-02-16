@@ -22,10 +22,10 @@ This sounds like we are trying to compare three different modeling methods for l
 Our evaluation criteria needs to speak to accuracy - which I would interpret as a higher confidence in the predictions - so having a smaller confidence interval band.
 
 We know our location
-We don't know the locations of access points
+We figured out the location of the access points.  Two are at the same location.  One was left out of the analysis.
 Could probably describe the location of access points 
 We know relationships of access points, test locations, signal strengths
-So for the missing one could we MLR it based on the known cases?
+
 
 Signal Strength = angle + distance(x, y)
 
@@ -39,7 +39,38 @@ offline %>% mutate(signal = as.numeric(signal)) %>% filter(mac %in% list) %>% gg
 offline %>% ggplot(aes(x=posX, y=posY)) + geom_point(alpha=0.05) + theme_light() + facet_grid(~mac)+ geom_jitter()
 
 ```
+#Heatmap of each of the two options
+```{r}
 
+parCur = par(mfrow = c(4,2), mar = rep(1, 4)) 
+
+mapply(surfaceSS, mac = "00:0f:a3:39:e1:c0", angle = rep(c(0, 135,180, 270), 2), data = list(data = offlineSummary))
+
+par(parCur)
+
+#Nolan, Deborah; Lang, Duncan Temple. Data Science in R: A Case Studies Approach to Computational Reasoning and Problem Solving (Chapman & Hall/CRC The R Series) (Page 28). CRC Press. Kindle Edition. 
+
+```
+
+```{r}
+#This is the one that was dropped
+compareMacList <- c("00:0f:a3:39:dd:cd", "00:0f:a3:39:e1:c0")
+offlineSummary2 = do.call("rbind", signalSummary)     
+
+parCur = par(mfrow = c(2,2), mar = rep(1, 4)) 
+
+mapply(surfaceSS, mac = compareMacList[rep(c(1,2), each=2)], angle = rep(c(90, 135), 2), data = list(data = offlineSummary2))
+
+par(parCur)
+
+#surfaceSS(mac="00:0f:a3:39:e1:c0", angle = 180, data = offlineSummary2)
+
+#Nolan, Deborah; Lang, Duncan Temple. Data Science in R: A Case Studies Approach to Computational Reasoning and Problem Solving (Chapman & Hall/CRC The R Series) (Page 28). CRC Press. Kindle Edition. 
+
+unique(offlineSummary2$orientation)
+
+```
+The access point that was eliminated, shown on the bottom, seems to have some greater uncertainty associated with it. While there's a zone of uncertainty associated with the first, it has a higher degree of certainty and strength of signal close to the suspected base.  
 
 #Keep e1:c0
 ```{r}

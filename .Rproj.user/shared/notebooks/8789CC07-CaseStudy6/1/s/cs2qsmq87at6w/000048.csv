@@ -1,0 +1,3 @@
+"0","oldPar = par(mar = c(1, 1, 1, 1))"
+"0","floorErrorMap(estXYk3, onlineSummary[ , c(""posX"",""posY"")], "
+"0","              trainPoints = trainPoints, AP = AP)"
