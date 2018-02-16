@@ -1,6 +1,4 @@
-"0","  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow(tmp), 6, 
-               byrow = TRUE), tmp)
-"
-"2","Error in matrix(tokens[c(2, 4, 6:8, 10)], nrow(tmp), 6, byrow = TRUE) : 
-  non-numeric matrix extent
-"
+"0","oldPar = par(mar = c(4, 4, 1, 1))"
+"0","plot(ecdf(offline$orientation), pch = 19, cex = 0.3,"
+"0","     xlim = c(-5, 365), axes = FALSE,"
+"0","     xlab = ""orientation"", ylab = ""Empirical CDF"", main = """")"
