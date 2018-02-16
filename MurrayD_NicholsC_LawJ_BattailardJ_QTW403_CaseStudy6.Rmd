@@ -37,7 +37,15 @@ https://www.technologyreview.com/the-download/609672/amazons-investment-in-robot
 
 http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
 
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/
+References
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/ - RTLS in healthcare
+
+http://ieeexplore.ieee.org/abstract/document/4679157/ - RTLS in warehouse management using WiFi and RFID
+
+https://patents.google.com/patent/US20120065483A1/en - RTLS for LIVESTOCK management and health analysis
+
+
 
 
 ```{r import, echo=FALSE}
