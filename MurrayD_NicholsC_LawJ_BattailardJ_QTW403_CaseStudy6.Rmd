@@ -1,8 +1,10 @@
 ---
-title: "Real Time Location Systems: Indoor Positioning Sytems Using K-Nearest Neighbors"
-author: Dennis Murray, Jared Law, Julien Battaillard, Cory Nichols
-date: February 20th, 2018
-output: html_notebook
+title: 'Real Time Location Systems: Indoor Positioning Sytems Using K-Nearest Neighbors'
+author: "Dennis Murray, Jared Law, Julien Battaillard, Cory Nichols"
+date: "February 20th, 2018"
+output:
+  html_notebook: default
+  word_document: default
 ---
 
 ## Abstract
@@ -12,9 +14,9 @@ The majority of people utilizing real time location systems  (RTLS) take them fo
 
 Real time location systems (RTLS) automatically track and identify the location of people or objects wirelessly. A classic RTLS example is location tracking of objects in a room, warehouse or other enclosed space. Hardware such as bluetooth tags or cell phones are used as mobile beacons to communicate with strategically placed readers or access points around the room. These beacons can be attached to humans, other devices, products or even robots [1]. Each beacon produces a signal that is read by access points or other tags around the room. Each signal provides data used to determine the location of the mobile device. Software applications utilizing triangulation, trilateration or a combination of location determination algorithms actively translate this location data and produce usable interfaces for humans to identify the location of a target.
 
-Applications for RTLS are vast and extend beyond a simple enclosed space. Advances in wireless technologies and proliferation of tracking tags have made real time location systems ubiquitous in manufacturing, inventory management and navigation [3]. Current location identification is a popular use of RTLS technology. However, tracking previous location history and tracing locations to predict future locations are also common tasks, especially in inventory management and logistics.
+Applications for RTLS are vast and extend beyond a simple enclosed space. Advances in wireless technologies and proliferation of tracking tags have made real time location systems ubiquitous in manufacturing, inventory management and navigation [3]. Current location identification of a package is a popular use of RTLS technology. However, tracking previous location history and tracing locations to predict future locations are also common tasks, especially in inventory management and logistics.
 
-In this paper, we extend previous analysis using indoor wireless signal data from Monneheim (sp) University [2]. These data are generated from a single mobile device and seven access points (readers) at 166 locations on one floor of a building. In previous analysis, Nolan and Temple Lang implement a K-nearest neighbors approach using six of seven access points, dropping an access point that was in a similar location to another access point. We investigate the effectiveness of this K-nearest neighbors model utilizing the access point previously not considered. We also extend the K-nearest neighbors approach by considering a weighted K-nearest neighbors implementation. 
+In this paper, we extend previous analysis by Nolan and Temple Lang [2] using indoor wireless signal strength data from Mannheim University. These data are generated from a single mobile device at 166 locations on a single floor of a building. Eight orientation angles are considered for each position and 110 readings are taken for each (x,y) location, angle combination. Seven access points (readers) provide signal strength data to the mobile device. In their analysis, Nolan and Temple Lang implement an indoor positioning system using an average-based K-nearest neighbors model. The model is used to predict the location of a mobile device on the same floor using previously unseen signal strength data. The authors drop an access point from their data set and use six of seven access points to build their K-nearest neighbors model. We investigate the accuracy of the authors' K-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based K-nearest neighbors approach by considering a weighted K-nearest neighbors model for predicting the location of the mobile device.
 
 ## Literature Review
 Jared and Cory (Jared)
@@ -22,10 +24,19 @@ Jared and Cory (Jared)
 ## Methods
 
 *Analysis of Extraneous MAC Address*
+
 Dennis and Julien (Dennis)
 
+
 *Weighted K-Nearest Neighbors Implementation*
-Jared and Cory (Cory)
+
+Nolan and Temple Lang [2] implement a k nearest neighbors model utilizing the mean of known neighbors (x,y) location to predict the position of new records containing signal strengths from six access points on the building floor. Given data exploration by the authors, it is determined that orientation is a significant factor affecting signal strength. In establishing a training data set, the authors take 
+
+
+```{r out.width='100%'}
+knitr::include_graphics('Geo_BoxplotSignalByMacAngle.pdf')
+```
+
 
 ## Results
 Cory and Dennis for each methods section above since they kind of go hand in hand
@@ -64,7 +75,6 @@ library(lattice)
 ```{r data_cleanup, echo=FALSE}
 #This is the code from Nolan and Lang Chapter 1
 options(digits = 2)
-#setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
 
 # Read in the text file to a matrix called txt
 txt = readLines("Data/offline.final.trace.txt")
@@ -193,7 +203,7 @@ length(unique(offline$orientation))
 plot(ecdf(offline$orientation))
 
 # build pdf export
-pdf(file = "Geo_ECDFOrientation.pdf", width = 10, height = 7)
+pdf(file = "Images/Geo_ECDFOrientation.pdf", width = 10, height = 7)
 oldPar = par(mar = c(4, 4, 1, 1))
 plot(ecdf(offline$orientation), pch = 19, cex = 0.3,
      xlim = c(-5, 365), axes = FALSE,
@@ -204,7 +214,8 @@ axis(side = 1, at = seq(0, 360, by = 45))
 par(oldPar)
 dev.off()
 
-pdf(file = "Geo_DensityOrientation.pdf", width = 10, height = 5)
+
+pdf(file = "Images/Geo_DensityOrientation.pdf", width = 10, height = 5)
 oldPar = par(mar = c(4, 4, 1, 1))
 plot(density(offline$orientation, bw = 2), 
  xlab = "orientation", main = "")
@@ -225,7 +236,10 @@ with(offline, boxplot(orientation ~ angle,
                       xlab="nearest 45 degree angle",
                       ylab="orientation"))
 
-pdf(file = "Geo_BoxplotAngle.pdf", width = 10)
+pdf(file = "Images/Geo_BoxplotAngle.pdf", width = 10)
+with(offline, boxplot(orientation ~ angle,
+                      xlab="nearest 45 degree angle",
+                      ylab="orientation"))
 oldPar = par(mar = c(4, 4, 1, 1))
 par(oldPar)
 dev.off()
@@ -286,7 +300,7 @@ locCounts = t(locCounts)
 plot(locCounts, type = "n", xlab = "", ylab = "")
 text(locCounts, labels = locCounts[,3], cex = 0.8, srt = 45)
 
-pdf(file = "Geo_XYByCount.pdf", width = 10)
+pdf(file = "Images/Geo_XYByCount.pdf", width = 10)
 oldPar = par(mar = c(3.1, 3.1, 1, 1))
 
 locCounts = t(locCounts)
@@ -352,7 +366,7 @@ findGlobals(readData, merge =FALSE)$variables
 ```{r eda_signalstr, echo=FALSE}
 # INVESTIGATING SIGNAL STRENGTH
 
-pdf(file = "Geo_BoxplotSignalByMacAngle.pdf", width = 7)
+pdf(file = "Images/Geo_BoxplotSignalByMacAngle.pdf", width = 7)
 oldPar = par(mar = c(3.1, 3, 1, 1))
 
 library(lattice)
@@ -371,7 +385,7 @@ dev.off()
 # overall statistics for signal, range of -98 to -25 (lower is stronger)
 summary(offline$signal)
 
-pdf(file = "Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
+pdf(file = "Images/Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
 oldPar = par(mar = c(3.1, 3, 1, 1))
 
 # investigate distribution of signals for one x,y & each angle
@@ -410,7 +424,7 @@ signalSummary =
 # bind all the summary lines together
 offlineSummary = do.call("rbind", signalSummary)     
 
-pdf(file = "Geo_BoxplotSignalSDByAvg.pdf", width = 10)
+pdf(file = "Images/Geo_BoxplotSignalSDByAvg.pdf", width = 10)
 oldPar = par(mar = c(3.1, 3, 1, 1))
 
 # create box and whisker for standard deviation for each avg Signal calculated in summary
@@ -425,7 +439,8 @@ bwplot(sdSignal ~ cut(avgSignal, breaks = breaks),
 par(oldPar)
 dev.off()
 
-pdf(file = "Geo_ScatterMean-Median.pdf", width = 10)
+
+pdf(file = "Images/Geo_ScatterMean-Median.pdf", width = 10)
 oldPar = par(mar = c(4.1, 4.1, 1, 1))
 
 # examine skewness of signal strength (avg - med signal) vs num observations
@@ -516,7 +531,7 @@ xyplot(signal ~ dist | factor(mac) + factor(angle),
        data = offlineSummary, pch = 19, cex = 0.3,
        xlab ="distance")
 
-pdf(file="Geo_ScatterSignalDist.pdf", width = 7, height = 10)
+pdf(file="Images/Geo_ScatterSignalDist.pdf", width = 7, height = 10)
 oldPar = par(mar = c(3.1, 3.1, 1, 1))
 library(lattice)
 xyplot(signal ~ dist | factor(mac) + factor(angle), 
@@ -729,6 +744,15 @@ estXYk3wtd = predXYwtd(newSignals = onlineSummary[ , 6:11],
                  newAngles = onlineSummary[ , 4], 
                  offlineSummary, numAngles = 3, k = 3)
 
+# with 7 neighbors
+estXYk7 = predXY(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 7)
+
+estXYk7wtd = predXYwtd(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 7)
+
 
 actualXY = onlineSummary[ , c("posX", "posY")]
 
@@ -736,10 +760,11 @@ calcError =
 function(estXY, actualXY) 
    sum( rowSums( (estXY - actualXY)^2) )
 
-sapply(list(estXYk1, estXYk3, estXYk3wtd))
+sapply(list(estXYk1, estXYk3, estXYk3wtd), calcError, actualXY)
 
 # testing without CV folds, full test set, takes about 2 minutes
 # this is not proper error testing! 
+
 error_mean_vec = c()
 error_wtd_vec = c()
 
@@ -765,6 +790,9 @@ for (i in seq(1,20,2)){
 # visualize learning curve based on squared error, iterating over K
 df = as_data_frame(cbind(error_mean_vec, error_wtd_vec, k=seq(1,20,2)))
 
+pdf(file = "Images/KNNvWTDKNNfull.pdf", width = 10)
+oldPar = par(mar = c(4.1, 4.1, 1, 1))
+
 # plot learning curve
 library(ggplot2)
 df %>%
@@ -773,6 +801,9 @@ ggplot()+
   geom_line(mapping=aes(x=k, y=error_wtd_vec, color="wtd KNN"), linetype="dashed", show.legend = TRUE)+
   ggtitle('Learning Curve given K')+
   labs(y="error")
+
+par(oldPar)
+dev.off()
 
 
 # show errors on the floor
@@ -798,7 +829,7 @@ trainPoints = offlineSummary[ offlineSummary$angle == 0 &
                               offlineSummary$mac == "00:0f:a3:39:e1:c0" ,
                         c("posX", "posY")]
 
-pdf(file="GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
+pdf(file="Images/GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 
 floorErrorMap(estXYk3, onlineSummary[ , c("posX","posY")], 
@@ -806,12 +837,27 @@ floorErrorMap(estXYk3, onlineSummary[ , c("posX","posY")],
 par(oldPar)
 dev.off()
 
-pdf(file="GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
+pdf(file="Images/GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 floorErrorMap(estXYk1, onlineSummary[ , c("posX","posY")], 
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
 dev.off()
+
+pdf(file="Images/GEO_FloorPlanK7Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk7, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+dev.off()
+
+pdf(file="Images/GEO_FloorPlanK7WTDErrors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk7wtd, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+dev.off()
+
 ```
 
 
@@ -882,7 +928,7 @@ estFoldwtd = predXYwtd(newSignals = onlineFold[ , 6:11],
 actualFold = onlineFold[ , c("posX", "posY")]
 calcError(estFoldwtd, actualFold)
 
-# formally test K out to 20
+# formally test K out to 20 neighbors
 K = 20
 err = rep(0, K)
 err_wtd = rep(0,K) # weighted error
@@ -907,7 +953,7 @@ for (j in 1:v) {
   }
 }
 
-pdf(file = "Geo_CVChoiceOfK.pdf", width = 10, height = 6)
+pdf(file = "Images/Geo_CVChoiceOfK.pdf", width = 8, height = 6)
 oldPar = par(mar = c(4, 3, 1, 1))
 plot(y = err, x = (1:K),  type = "l", lwd= 2,
      ylim = c(0, 2100),
