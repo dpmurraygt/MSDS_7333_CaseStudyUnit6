@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1518833343959.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "50361922",
+    "lastKnownWriteTime" : 28147970124742755,
+    "last_content_update" : 1518833343959,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "BD5B0FC2",
+        "caption" : "offline2",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=offline2&cache_key=BD5B0FC2",
+        "displayedObservations" : 769332,
+        "environment" : "",
+        "object" : "offline2",
+        "preview" : 0,
+        "totalObservations" : 769332,
+        "variables" : 8
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

@@ -1,0 +1,4 @@
+"0","rmseMin = min(err)"
+"0","kMin = which(err == rmseMin)[1]"
+"0","rmseMin_wtd = min(err_wtd)"
+"0","kMin_wtd = which(err_wtd == rmseMin_wtd)[1]"

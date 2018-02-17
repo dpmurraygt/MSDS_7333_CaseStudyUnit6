@@ -1,3 +1,0 @@
-"0","oldPar = par(mar = c(4, 4, 1, 1))"
-"0","plot(density(offline$orientation, bw = 2), "
-"0"," xlab = ""orientation"", main = """")"

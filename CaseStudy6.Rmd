@@ -219,7 +219,7 @@ readData =
   function(filename = 'Data/offline.final.trace.txt', 
            subMacs = c("00:0f:a3:39:e1:c0", "00:0f:a3:39:dd:cd", "00:14:bf:b1:97:8a",
                        "00:14:bf:3b:c7:c6", "00:14:bf:b1:97:90", "00:14:bf:b1:97:8d",
-                       "00:14:bf:b1:97:81"))
+                       "00:14:bf:b1:97:81","00:0f:a3:39:dd:cd"))
   {
     txt = readLines(filename)
     lines = txt[ substr(txt, 1, 1) != "#" ]
@@ -601,7 +601,7 @@ reshapeSS = function(data, varSignal = "signal",
   return(newDataSS)
 }
 
-offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
+#offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
 
 keepVars = c("posXY", "posX","posY", "orientation", "angle")
 
