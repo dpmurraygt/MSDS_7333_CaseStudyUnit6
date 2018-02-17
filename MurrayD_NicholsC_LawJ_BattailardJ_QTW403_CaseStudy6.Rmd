@@ -3,78 +3,28 @@ title: 'Real Time Location Systems: Indoor Positioning Sytems Using K-Nearest Ne
 author: "Dennis Murray, Jared Law, Julien Battaillard, Cory Nichols"
 date: "February 20th, 2018"
 output:
-  html_notebook: default
-  word_document: default
+  html_document:
+    df_print: paged
+  word_document:
+    fig_caption: yes
 ---
 
-## Abstract
-The majority of people utilizing real time location systems  (RTLS) take them for granted. For example, GPS navigation on a cellular phone or tracking an Amazon package online utilize RTLS to communicate critical location information to consumers via a button click. RTLS is also a component in inventory management and logistics for many different industries. Companies such as Dell pioneered inventory management systems utilizing RTLS [1]. While applications are vast, RTLS is commonly used at room level and at entry ways of a building for security and tracking purposes. In this paper, we extend analysis from Nolan and Temple Lang [2] using location data from a handheld device and six access points inside of a building. We investigate the impact of leaving out a single access point on the statistical RTLS developed in Nolan and Temple Lang's research. We also extend the statistical RTLS developed in [2] by using a weighted K-nearest neighbors method. Results show that (results for MAC analysis here). We also find greater success using a weighted K-nearest neighbors approach in determining location given the data and infrastructure layout.
-
-## Introduction
-
-Real time location systems (RTLS) automatically track and identify the location of people or objects wirelessly. A classic RTLS example is location tracking of objects in a room, warehouse or other enclosed space. Hardware such as bluetooth tags or cell phones are used as mobile beacons to communicate with strategically placed readers or access points around the room. These beacons can be attached to humans, other devices, products or even robots [1]. Each beacon produces a signal that is read by access points or other tags around the room. Each signal provides data used to determine the location of the mobile device. Software applications utilizing triangulation, trilateration or a combination of location determination algorithms actively translate this location data and produce usable interfaces for humans to identify the location of a target.
-
-Applications for RTLS are vast and extend beyond a simple enclosed space. Advances in wireless technologies and proliferation of tracking tags have made real time location systems ubiquitous in manufacturing, inventory management and navigation [3]. Current location identification of a package is a popular use of RTLS technology. However, tracking previous location history and tracing locations to predict future locations are also common tasks, especially in inventory management and logistics.
-
-In this paper, we extend previous analysis by Nolan and Temple Lang [2] using indoor wireless signal strength data from Mannheim University. These data are generated from a single mobile device at 166 locations on a single floor of a building. Eight orientation angles are considered for each position and 110 readings are taken for each (x,y) location, angle combination. Seven access points (readers) provide signal strength data to the mobile device. In their analysis, Nolan and Temple Lang implement an indoor positioning system using an average-based K-nearest neighbors model. The model is used to predict the location of a mobile device on the same floor using previously unseen signal strength data. The authors drop an access point from their data set and use six of seven access points to build their K-nearest neighbors model. We investigate the accuracy of the authors' K-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based K-nearest neighbors approach by considering a weighted K-nearest neighbors model for predicting the location of the mobile device.
-
-## Literature Review
-Jared and Cory (Jared)
-
-## Methods
-
-*Analysis of Extraneous MAC Address*
-
-Dennis and Julien (Dennis)
-
-
-*Weighted K-Nearest Neighbors Implementation*
-
-Nolan and Temple Lang [2] implement a k nearest neighbors model utilizing the mean of known neighbors (x,y) location to predict the position of new records containing signal strengths from six access points on the building floor. Given data exploration by the authors, it is determined that orientation is a significant factor affecting signal strength. In establishing a training data set, the authors take 
-
-
-```{r out.width='100%'}
-knitr::include_graphics('Geo_BoxplotSignalByMacAngle.pdf')
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_knit$set(root.dir = '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/')
 ```
 
-
-## Results
-Cory and Dennis for each methods section above since they kind of go hand in hand
-
-## Conclusion and Future Work
-Dennis and Julien (Julien)
-
-## References
-http://www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system
-
-Nolan Temple Lang book
-
-https://www.technologyreview.com/the-download/609672/amazons-investment-in-robots-is-eliminating-human-jobs/
-
-http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
-
-References
-
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/ - RTLS in healthcare
-
-http://ieeexplore.ieee.org/abstract/document/4679157/ - RTLS in warehouse management using WiFi and RFID
-
-https://patents.google.com/patent/US20120065483A1/en - RTLS for LIVESTOCK management and health analysis
-
-
-
-
-```{r import, echo=FALSE}
+```{r import_libs, include=FALSE, echo=FALSE}
 library(tidyr)
 library(dplyr)
 library(fields)
 library(lattice)
-
+library(knitr)
 ```
 
-```{r data_cleanup, echo=FALSE}
+```{r data_cleanup, include= FALSE, echo=FALSE}
 #This is the code from Nolan and Lang Chapter 1
 options(digits = 2)
+
 
 # Read in the text file to a matrix called txt
 txt = readLines("Data/offline.final.trace.txt")
@@ -203,7 +153,7 @@ length(unique(offline$orientation))
 plot(ecdf(offline$orientation))
 
 # build pdf export
-pdf(file = "Images/Geo_ECDFOrientation.pdf", width = 10, height = 7)
+#pdf(file = "Images/Geo_ECDFOrientation.pdf", width = 10, height = 7)
 oldPar = par(mar = c(4, 4, 1, 1))
 plot(ecdf(offline$orientation), pch = 19, cex = 0.3,
      xlim = c(-5, 365), axes = FALSE,
@@ -212,15 +162,15 @@ box()
 axis(2)
 axis(side = 1, at = seq(0, 360, by = 45))
 par(oldPar)
-dev.off()
+#dev.off()
 
 
-pdf(file = "Images/Geo_DensityOrientation.pdf", width = 10, height = 5)
+#pdf(file = "Images/Geo_DensityOrientation.pdf", width = 10, height = 5)
 oldPar = par(mar = c(4, 4, 1, 1))
 plot(density(offline$orientation, bw = 2), 
  xlab = "orientation", main = "")
 par(oldPar)
-dev.off()
+#dev.off()
 
 # to normalize, build function to round off orientation
 roundOrientation = function(angles) {
@@ -236,13 +186,13 @@ with(offline, boxplot(orientation ~ angle,
                       xlab="nearest 45 degree angle",
                       ylab="orientation"))
 
-pdf(file = "Images/Geo_BoxplotAngle.pdf", width = 10)
+#pdf(file = "Images/Geo_BoxplotAngle.pdf", width = 10)
 with(offline, boxplot(orientation ~ angle,
                       xlab="nearest 45 degree angle",
                       ylab="orientation"))
 oldPar = par(mar = c(4, 4, 1, 1))
 par(oldPar)
-dev.off()
+#dev.off()
 
 
 # Exploring MAC Addresses
@@ -267,7 +217,8 @@ apply(macChannel, 1, function(x) sum(x > 0))
 offline = offline[ , "channel" != names(offline)]
 ```
 
-``` {r eda, echo=FALSE}
+
+```{r exploratory_analysis, include=FALSE, echo=FALSE}
 # EXPLORING POSITION OF HANDHELD DEVICE
 
 # how many unique x,y positions?
@@ -300,7 +251,7 @@ locCounts = t(locCounts)
 plot(locCounts, type = "n", xlab = "", ylab = "")
 text(locCounts, labels = locCounts[,3], cex = 0.8, srt = 45)
 
-pdf(file = "Images/Geo_XYByCount.pdf", width = 10)
+#pdf(file = "Images/Geo_XYByCount.pdf", width = 10)
 oldPar = par(mar = c(3.1, 3.1, 1, 1))
 
 locCounts = t(locCounts)
@@ -308,7 +259,7 @@ plot(locCounts, type = "n", xlab = "", ylab = "")
 text(locCounts, labels = locCounts[,3], cex = .8, srt = 45)
 
 par(oldPar)
-dev.off()
+#dev.off()
 
 
 # CREATING A FUNCTION TO PREPARE THE DATA
@@ -363,13 +314,37 @@ library(codetools)
 findGlobals(readData, merge =FALSE)$variables
 ```
 
-```{r eda_signalstr, echo=FALSE}
+## Abstract
+The majority of people utilizing real time location systems  (RTLS) take them for granted. For example, GPS navigation on a cellular phone or tracking an Amazon package online utilize RTLS to communicate critical location information to consumers via a button click. RTLS is also a component in inventory management and logistics for many different industries. Companies such as Dell pioneered inventory management systems utilizing RTLS [1]. While applications are vast, RTLS is commonly used at room level and at entry ways of a building for security and tracking purposes. In this paper, we extend analysis from Nolan and Temple Lang [2] using location data from a handheld device and six access points inside of a building. We investigate the impact of leaving out a single access point on the statistical RTLS developed in Nolan and Temple Lang's research. We also extend the statistical RTLS developed in [2] by using a weighted K-nearest neighbors method. Results show that (results for MAC analysis here). We also find greater success using a weighted K-nearest neighbors approach in determining location given the data and infrastructure layout.
+
+## Introduction
+
+Real time location systems (RTLS) automatically track and identify the location of people or objects wirelessly. A classic RTLS example is location tracking of objects in a room, warehouse or other enclosed space. Hardware such as bluetooth tags or cell phones are used as mobile beacons to communicate with strategically placed readers or access points around the room. These beacons can be attached to humans, other devices, products or even robots [1]. Each beacon produces a signal that is read by access points or other tags around the room. Each signal provides data used to determine the location of the mobile device. Software applications utilizing triangulation, trilateration or a combination of location determination algorithms actively translate this location data and produce usable interfaces for humans to identify the location of a target.
+
+Applications for RTLS are vast and extend beyond a simple enclosed space. Advances in wireless technologies and proliferation of tracking tags have made real time location systems ubiquitous in manufacturing, inventory management and navigation [3]. Current location identification of a package is a popular use of RTLS technology. However, tracking previous location history and tracing locations to predict future locations are also common tasks, especially in inventory management and logistics.
+
+In this paper, we extend previous analysis by Nolan and Temple Lang [2] using indoor wireless signal strength data from Mannheim University. These data are generated from a single mobile device at 166 locations on a single floor of a building. Eight orientation angles are considered for each position and 110 readings are taken for each (x,y) location, angle combination. Seven access points (readers) provide signal strength data to the mobile device. In their analysis, Nolan and Temple Lang implement an indoor positioning system using an average-based K-nearest neighbors model. The model is used to predict the location of a mobile device on the same floor using previously unseen signal strength data. The authors drop an access point from their data set and use six of seven access points to build their K-nearest neighbors model. We investigate the accuracy of the authors' K-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based K-nearest neighbors approach by considering a weighted K-nearest neighbors model for predicting the location of the mobile device.
+
+## Literature Review
+Jared and Cory (Jared)
+
+## Methods
+
+*Analysis of Extraneous MAC Address*
+
+Dennis and Julien (Dennis)
+
+
+*Weighted K-Nearest Neighbors Implementation*
+
+Nolan and Temple Lang [2] implement a k nearest neighbors model utilizing the mean of known neighbors' (x,y) location to predict the position of new records. These new records contain signal strengths from six access points on the building floor. Prior to model fitting, Nolan and Temple Lang determined that the orientation of a reading has an impact on signal strength. In establishing a training data set, the authors explicitly identify an angle parameter in their model for predicting location. This parameter allows the model to take into account an average of a number of angles when establishing a training set used to predict the location of new observations. This averaging method considers additional angles for prediction purposes. For instance, when considering an x,y position of (2,12), MAC address 00:14:bf:b1:97:90 shows signal strength variability differences.
+
+```{r eda_signalstr, include=TRUE, echo=FALSE, fig.cap=cap}
 # INVESTIGATING SIGNAL STRENGTH
 
-pdf(file = "Images/Geo_BoxplotSignalByMacAngle.pdf", width = 7)
-oldPar = par(mar = c(3.1, 3, 1, 1))
+#pdf(file = "Images/Geo_BoxplotSignalByMacAngle.pdf", width = 7)
+#oldPar = par(mar = c(3.1, 3, 1, 1))
 
-library(lattice)
 # investigate variability of angle for each MAC given one x,y position
 # we exclude MAC 00:0f:a3:39:dd:cd here, can see that angle affects
 # the signal fr some mac addresses, especially those with stronger signals
@@ -378,14 +353,46 @@ bwplot(signal ~ factor(angle) | mac,
        subset = posX == 2 & posY == 12 
                 & mac != "00:0f:a3:39:dd:cd", 
        layout = c(2,3))
+cap <- "test"
 
-par(oldPar)
-dev.off()
+#par(oldPar)
+#dev.off()
 
+```
+
+While we do not explore this parameter in our analysis, we do note that Nolan and Lang consider three angles when building the training set used for prediction in their k nearest neighbor model. To be consistent, we maintain three angles in our implementation of a weighted k nearest neighbors model.
+
+## Results
+*MAC Address Conclusions**
+
+*KNN Conclusions*
+Cory and Dennis for each methods section above since they kind of go hand in hand
+
+## Conclusion and Future Work
+Dennis and Julien (Julien)
+
+## References
+http://www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system
+
+Nolan Temple Lang book
+
+https://www.technologyreview.com/the-download/609672/amazons-investment-in-robots-is-eliminating-human-jobs/
+
+http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
+
+References
+
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/ - RTLS in healthcare
+
+http://ieeexplore.ieee.org/abstract/document/4679157/ - RTLS in warehouse management using WiFi and RFID
+
+https://patents.google.com/patent/US20120065483A1/en - RTLS for LIVESTOCK management and health analysis
+
+```{r addtl_eda, eval=FALSE, echo=FALSE, include=FALSE}
 # overall statistics for signal, range of -98 to -25 (lower is stronger)
 summary(offline$signal)
 
-pdf(file = "Images/Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
+#pdf(file = "Images/Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
 oldPar = par(mar = c(3.1, 3, 1, 1))
 
 # investigate distribution of signals for one x,y & each angle
@@ -397,7 +404,7 @@ densityplot( ~ signal | mac + factor(angle),
              bw = 0.5, plot.points = FALSE)
 
 par(oldPar)
-dev.off()
+#dev.off()
 
 #offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
 
@@ -424,7 +431,7 @@ signalSummary =
 # bind all the summary lines together
 offlineSummary = do.call("rbind", signalSummary)     
 
-pdf(file = "Images/Geo_BoxplotSignalSDByAvg.pdf", width = 10)
+#pdf(file = "Images/Geo_BoxplotSignalSDByAvg.pdf", width = 10)
 oldPar = par(mar = c(3.1, 3, 1, 1))
 
 # create box and whisker for standard deviation for each avg Signal calculated in summary
@@ -437,10 +444,10 @@ bwplot(sdSignal ~ cut(avgSignal, breaks = breaks),
        xlab = "Mean Signal", ylab = "SD Signal")
 
 par(oldPar)
-dev.off()
+#dev.off()
 
 
-pdf(file = "Images/Geo_ScatterMean-Median.pdf", width = 10)
+#pdf(file = "Images/Geo_ScatterMean-Median.pdf", width = 10)
 oldPar = par(mar = c(4.1, 4.1, 1, 1))
 
 # examine skewness of signal strength (avg - med signal) vs num observations
@@ -463,7 +470,7 @@ lo.obj.pr = predict(lo.obj, newdata = data.frame(num = (70:120)))
 lines(x = 70:120, y = lo.obj.pr, col = "#4daf4a", lwd = 2)
 
 par(oldPar)
-dev.off()
+#dev.off()
  
 
 # THE RELATIONSHIP BETWEEN SIGNAL AND DISTANCE
@@ -531,18 +538,18 @@ xyplot(signal ~ dist | factor(mac) + factor(angle),
        data = offlineSummary, pch = 19, cex = 0.3,
        xlab ="distance")
 
-pdf(file="Images/Geo_ScatterSignalDist.pdf", width = 7, height = 10)
+#pdf(file="Images/Geo_ScatterSignalDist.pdf", width = 7, height = 10)
 oldPar = par(mar = c(3.1, 3.1, 1, 1))
-library(lattice)
+
 xyplot(signal ~ dist | factor(mac) + factor(angle), 
        data = offlineSummary, pch = 19, cex = 0.3,
        xlab ="distance")
 par(oldPar)
-dev.off()
+#dev.off()
 
 ```
 
-```{r knn_work, echo=FALSE}
+```{r knn_work, eval=FALSE, include=FALSE, echo=FALSE}
 
 # using only signals to APs from previously trained locations
 # need to reformat data so signal strength is across columns
@@ -728,7 +735,7 @@ predXYwtd = function(newSignals, newAngles, trainData,
 }
 ```
 
-```{r knnsummary, echo=FALSE}
+```{r knnsummary, eval=FALSE, include=FALSE, echo=FALSE}
 
 # this is testing on the test set... not optimal, validation is in the next section
 # we are also using 3 angles to aggregate and average for our training set to compare to
@@ -790,7 +797,7 @@ for (i in seq(1,20,2)){
 # visualize learning curve based on squared error, iterating over K
 df = as_data_frame(cbind(error_mean_vec, error_wtd_vec, k=seq(1,20,2)))
 
-pdf(file = "Images/KNNvWTDKNNfull.pdf", width = 10)
+#pdf(file = "Images/KNNvWTDKNNfull.pdf", width = 10)
 oldPar = par(mar = c(4.1, 4.1, 1, 1))
 
 # plot learning curve
@@ -803,7 +810,7 @@ ggplot()+
   labs(y="error")
 
 par(oldPar)
-dev.off()
+#dev.off()
 
 
 # show errors on the floor
@@ -829,39 +836,39 @@ trainPoints = offlineSummary[ offlineSummary$angle == 0 &
                               offlineSummary$mac == "00:0f:a3:39:e1:c0" ,
                         c("posX", "posY")]
 
-pdf(file="Images/GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
+#pdf(file="Images/GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 
 floorErrorMap(estXYk3, onlineSummary[ , c("posX","posY")], 
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
-dev.off()
+#dev.off()
 
-pdf(file="Images/GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
+#pdf(file="Images/GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 floorErrorMap(estXYk1, onlineSummary[ , c("posX","posY")], 
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
-dev.off()
+#dev.off()
 
-pdf(file="Images/GEO_FloorPlanK7Errors.pdf", width = 10, height = 7)
+#pdf(file="Images/GEO_FloorPlanK7Errors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 floorErrorMap(estXYk7, onlineSummary[ , c("posX","posY")], 
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
-dev.off()
+#dev.off()
 
-pdf(file="Images/GEO_FloorPlanK7WTDErrors.pdf", width = 10, height = 7)
+#pdf(file="Images/GEO_FloorPlanK7WTDErrors.pdf", width = 10, height = 7)
 oldPar = par(mar = c(1, 1, 1, 1))
 floorErrorMap(estXYk7wtd, onlineSummary[ , c("posX","posY")], 
               trainPoints = trainPoints, AP = AP)
 par(oldPar)
-dev.off()
+#dev.off()
 
 ```
 
 
-```{r cross_validation, echo=FALSE}
+```{r cross_validation, eval=FALSE, include=FALSE, echo=FALSE}
 # cross validate over each location, using all 8 orientations and 6 MAC addresses
 # each fold has 166/11 = 15 locations
 # must randomly select
@@ -970,7 +977,7 @@ kMin_wtd = which(err_wtd == rmseMin_wtd)[1]
 
 ```
 
-```{r addtl, echo=FALSE}
+```{r addtl, cache=FALSE, eval=FALSE}
 # additional code not in book:
 
 segments(x0 = 0, x1 = kMin, y0 = rmseMin, col = gray(0.4), 
