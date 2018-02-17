@@ -2,7 +2,8 @@
 
 # CREATING A FUNCTION TO PREPARE THE DATA
 
-setwd('~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/Data/')
+dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/Data/'
+setwd(dir)
 
 readData = 
   function(filename = 'offline.final.trace.txt', 
@@ -45,6 +46,5 @@ readData =
     return(offline)
   }
 
-offlineTraining = readData()
-
-write.csv(offlineTraining, file="offlineTraining.csv")
+offline = readData()
+write.csv(offline, file="offline.csv", row.names=FALSE)
