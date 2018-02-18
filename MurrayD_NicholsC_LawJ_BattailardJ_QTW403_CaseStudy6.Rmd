@@ -40,7 +40,13 @@ In this paper, we extend previous analysis by Nolan and Temple Lang [2] using in
 In their analysis, Nolan and Temple Lang implement an indoor positioning system using an average-based k nearest neighbors model. The model is used to predict the location of a mobile device on the same floor using previously unseen signal strength data. The authors drop an access point from their data set and use six of the seven access points to build their K-nearest neighbors model. We investigate the accuracy of the authors' K-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based K-nearest neighbors approach by considering a weighted K-nearest neighbors model for predicting the location of the mobile device.
 
 ## Literature Review
-Jared and Cory (Jared)
+Real-time location systems have no shortage of literature to enhance one’s knowledge on the subject.  There are a multitude of techniques for RTLS to work, from radio frequency identification (RFID), to infrared laser line-of-sight systems and ultrasound systems as the more common ones.  These systems allow for location data to be passed through objects, as in RFID, or provide more precise indoor locations in the case of ultrasound or line-of sight systems.  The techniques to analyze the position of the identification tags with each system can vary as well, and though we utilized k-nearest neighbors, other systems are used depending on the communication protocol used for the tags. [5]
+
+There are multiple uses for such technology, from inventory management to livestock tracking or even patient and worker tracking.  Healthcare has continued to work on ways to utilize such technology while limiting cross-contamination, such as in the Toronto University Health Network.  This system allows the university to locate personnel and equipment entering a contaminated area and then sends an alert if the person or equipment hasn't been decontaminated or goes to a loction that could introduce cross-contamination. [8] Or a patent filed for tracking livestock that would assist ranchers and farmers in keeping location information on their herds.  This system using the distance value transmitted from the reader to the system which then utilized k-nearest neighbor analysis to determine location. [7]
+
+One of the bigger challenges with RTLS systems and current technologies is patient or worker confidentiality.  Something that isn’t taken into account in the assignment, but is still a significant privacy concern for most businesses and which makes true RTLS in a business setting where people are involved less than appealing.  One solution for that was proposed in Yi, et al, where they propose to utilize the Paillier public-key cryptosystem in the kNN query of the location.  This provides the end-user with both location and data privacy.  This is strictly in a more request oriented type, however reversing such technology for use in business can be achieved while maintaining a person’s privacy and are proven to be more efficient than current methodologies. [9]
+
+While not directly related to the assignment, the research into such methodologies shows that there is much more that can be done with the kNN back-end in RTLS methodologies than we can outline in one paper.  The technology will continue to move forward, with businesses using RTLS to improve fulfillment requests using robotics, such as Amazon[3], or in inventory management and warehouse distribution in a company[6].  Such systems are in wide use in business, and even some defense contractors utilize the technology to assist in moving products from one location to another in their industrial processes to increase safety, efficiency and reduce human overhead.[10]  Further discussion will show our methods and how we tackle the issues that are presented in the Nolan and Lang.
 
 ## Methods
 
@@ -167,22 +173,25 @@ Cory and Dennis for each methods section above since they kind of go hand in han
 Dennis and Julien (Julien)
 
 ## References
-http://www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system
+[1] http://www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system
 
-Nolan Temple Lang book
+[2] Nolan Temple Lang book
 
-https://www.technologyreview.com/the-download/609672/amazons-investment-in-robots-is-eliminating-human-jobs/
+[3] https://www.technologyreview.com/the-download/609672/amazons-investment-in-robots-is-eliminating-human-jobs/
 
-http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
+[4] http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
 
-References
+[5] https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/ - RTLS in healthcare
 
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/ - RTLS in healthcare
+[6] http://ieeexplore.ieee.org/abstract/document/4679157/ - RTLS in warehouse management using WiFi and RFID
 
-http://ieeexplore.ieee.org/abstract/document/4679157/ - RTLS in warehouse management using WiFi and RFID
+[7] https://patents.google.com/patent/US20120065483A1/en - RTLS for LIVESTOCK management and health analysis
 
-https://patents.google.com/patent/US20120065483A1/en - RTLS for LIVESTOCK management and health analysis
+[8] http://www.rfidjournal.com/articles/view?9266 - Toronto General Hospital Uses RTLS to reduce cross-contamination
 
+[9] Yi, Xun; Paulet, Russel; Bertino, Elisa; Varadharajan, Vijay. "Practical k Nearest Neighbor Queries with Location Privacy" (2014). Cyver Center Publications.  Paper 592.  Retrieved from http://dx.doi.org/10.1109/ICDE.2014.6816688.
+
+[10] https://www.raytheon.com/news/technology_today/2015_i1/facilitymod.html - Raytheon Missile Facility Uses Advanced Technology
 
 
 ```{r data_prep, include= FALSE, echo=FALSE, eval=FALSE}
