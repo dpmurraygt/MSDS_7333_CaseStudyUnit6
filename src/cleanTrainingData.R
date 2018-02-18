@@ -5,6 +5,24 @@
 dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/Data/'
 setwd(dir)
 
+processLine = function(x)
+{
+  tokens = strsplit(x, "[;=,]")[[1]]
+  
+  if (length(tokens) == 10)  # this is the adjustment, checks to see if we have signal responses, if not, returns null
+    return(NULL)
+  
+  tmp = matrix(tokens[ - (1:10) ], ncol= 4, byrow = TRUE)
+  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow(tmp), 6, 
+               byrow = TRUE), tmp)
+}
+
+roundOrientation = function(angles) {
+  refs = seq(0, by = 45, length  = 9)
+  q = sapply(angles, function(o) which.min(abs(o - refs))) # which angle is orientation value closest to? get index
+  c(refs[1:8], 0)[q] # map index to reference positions, taking care to make sure 360 == 0
+}
+
 readData = 
   function(filename = 'offline.final.trace.txt', 
            subMacs = c("00:0f:a3:39:e1:c0", "00:0f:a3:39:dd:cd", "00:14:bf:b1:97:8a",
