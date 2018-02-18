@@ -39,23 +39,23 @@ Applications for RTLS are vast and extend beyond a simple enclosed space. Advanc
 
 In this paper, we extend previous analysis by Nolan and Temple Lang [2] using indoor wireless signal strength data provided by Mannheim University. These data are generated from a single mobile device at 166 locations on one floor of a multi-story building. Eight orientation angles are considered at each location and 110 readings are taken for each (x,y) location, angle combination. Seven access points provide signal strength data to the mobile device. 
 
-In their analysis, Nolan and Temple Lang implement an indoor positioning system using signal strength data and an average-based k nearest neighbors model. The model is used to predict the location of a mobile device using previously unseen signal strength data. The authors drop an access point from their training data set and use six of the seven access points for their k nearest neighbors model. 
+In their analysis, Nolan and Temple Lang implement an indoor positioning system using signal strength data and an average-based *k*-nearest neighbors model. The model is used to predict the location of a mobile device using previously unseen signal strength data. The authors drop an access point from their training data set and use six of the seven access points for their *k*-nearest neighbors model. 
 
-We investigate the accuracy of the authors' k nearest neighbors model utilizing the access point previously not considered. We also extend the average-based  k nearest neighbors approach by implementing a weighted k nearest neighbors model for predicting the location of previously unseen signal strength data.
+We investigate the accuracy of the authors' *k*-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based  *k*-nearest neighbors approach by implementing a weighted *k*-nearest neighbors model for predicting the location of previously unseen signal strength data.
 
 ## Literature Review
-Real-time location systems have no shortage of literature to enhance one’s knowledge on the subject.  There are a multitude of techniques for RTLS to work, from radio frequency identification (RFID), to infrared laser line-of-sight systems and ultrasound systems.  These systems allow for location data to be passed through objects  or provide more precise indoor locations.  The techniques to analyze the position of the identification tags with each system can vary as well. Though we utilize k nearest neighbors, other systems are used depending on the communication protocol used with wireless tags. [5]
+Real-time location systems have no shortage of literature to enhance one’s knowledge on the subject.  There are a multitude of techniques for RTLS to work, from radio frequency identification (RFID), to infrared laser line-of-sight systems and ultrasound systems.  These systems allow for location data to be passed through objects  or provide more precise indoor locations.  The techniques to analyze the position of the identification tags with each system can vary as well. Though we utilize *k*-nearest neighbors, other systems are used depending on the communication protocol used with wireless tags. [5]
 
 There are multiple uses for such technology; from inventory management and livestock tracking to patient and worker tracking.  Healthcare has continued to develop ways to utilize such technology to limit cross-contamination. At the Toronto University Health Network, a real time location system allows the university to locate personnel and equipment entering a contaminated area and then sends an alert if the person or equipment hasn't been decontaminated [8]. Another example is a patent filed for tracking livestock that would assist ranchers and farmers in keeping location information on their herds.This system utilizes the distance value transmitted from the reader and k-nearest neighbor analysis to determine location. [7]
 
 # this could be great for future use/other considerations! may consider moving there
 One of the larger challenges with real time location systems and current technologies is patient or worker confidentiality. Something that isn’t taken into account in the assignment, but is still a significant privacy concern for most businesses and which makes true RTLS in a business setting where people are involved less than appealing.  One solution for that was proposed in Yi, et al, where they propose to utilize the Paillier public-key cryptosystem in the kNN query of the location.  This provides the end-user with both location and data privacy.  This is strictly in a more request oriented type, however reversing such technology for use in business can be achieved while maintaining a person’s privacy and are proven to be more efficient than current methodologies. [9]
 
-RTLS research indicates broad applications for k nearest neighbors methods. The technology will continue to move forward, with businesses using RTLS to improve fulfillment requests using robotics [3] and in warehouse distribution [6]. Defense contractors utilize RTLS to assist in moving products from one location to another in their industrial processes to increase safety, efficiency and reduce human overhead [10].
+RTLS research indicates broad applications for *k*-nearest neighbors methods. The technology will continue to move forward, with businesses using RTLS to improve fulfillment requests using robotics [3] and in warehouse distribution [6]. Defense contractors utilize RTLS to assist in moving products from one location to another in their industrial processes to increase safety, efficiency and reduce human overhead [10].
 
 ## Methods
 
-In this paper, we investigate the impact of Nolan and Temple Lang's decision to exclude an extraneous access point from their indoor positioning system. We also implement a weighted k nearest neighbors model and compare it to the average-based k nearest neighbors model implemented by Nolan and Temple Lang. Prior to discussing methods for accomplishing our two analysis objectives, we provide salient findings about the raw data and the transformations taken to prepare the data for analysis.
+In this paper, we investigate the impact of Nolan and Temple Lang's decision to exclude an extraneous access point from their indoor positioning system. We also implement a weighted *k*-nearest neighbors model and compare it to the average-based *k*-nearest neighbors model implemented by Nolan and Temple Lang. Prior to discussing methods for accomplishing our two analysis objectives, we provide salient findings about the raw data and the transformations taken to prepare the data for analysis.
 
 The raw data is split into a training set and a test set. We focus on the training data set for analysis purposes. The training data set contains 151,392 unique lines detailing the (x,y) position and orientation of a mobile device. At each position and orientation combination, 110 signal strength readings are obtained between the mobile device and various access points. In addition to signal strength readings, variables such as the POSIX time of the reading and the physical MAC address for each access point are also captured.
 
@@ -68,7 +68,7 @@ kable(offline[1:5,], caption="Table 1: Formatted Dataset for Analysis", row.name
 cap <- "Table 1: Transformed Offline Dataset Structure"
 ```
 
-Key exploratory data analysis results help to form assumptions and methods for an indoor positioning system using a k nearest neighbors model. Non-normal, multi-modal signal distributions are found when considering signal strength and the angle of the mobile at each (x,y) location reading. This indicates angle has an effect on signal strength. Figure 2 displays this analysis finding for one access point at a single position.
+Key exploratory data analysis results help to form assumptions and methods for an indoor positioning system using a *k*-nearest neighbors model. Non-normal, multi-modal signal distributions are found when considering signal strength and the angle of the mobile at each (x,y) location reading. This indicates angle has an effect on signal strength. Figure 2 displays this analysis finding for one access point at a single position.
 
 ```{r angle_density_plot, include=TRUE, echo=FALSE, cache=TRUE, fig.cap=cap}
 oldPar = par(mar = c(3.1, 3, 1, 1))
@@ -84,7 +84,7 @@ cap <- "Figure 1: Angle Based Density Plots for 00:0f:a3:39:e1:c0"
 
 The transformed dataset is subsequently aggregated by (x,y) position, angle and MAC address. Additional analysis using the aggregated data shows higher variability for stronger signal strengths. Additionally, the relationship between signal and distance shows that signal strength weakens as distance increases. This negative relationship is expected and can be seen for each access point in Figure 2.
 
-```{r offlineSummary_creation, include=FALSE, echo=FALSE, cache=TRUE}
+```{r summary_creation, include=FALSE, echo=FALSE, cache=TRUE}
 # create table of summary stats by Location, Angle and AP
 offline$posXY = paste(offline$posX, offline$posY, sep = "-") # concat x,y
 
@@ -106,7 +106,11 @@ signalSummary =
            })
 
 # bind all the summary lines together
-offlineSummary = do.call("rbind", signalSummary)  
+offlineSummary = do.call("rbind", signalSummary)
+
+# onlineSummary includes ALL MACS (filter out as needed!)
+onlineSummary = read.csv('Data/onlineSummary.csv', stringsAsFactors = FALSE)
+
 ```
 
 ```{r xyplot, include=TRUE, echo=FALSE, cache=TRUE, fig.cap="Figure 2: Relationship Between Signal and Distance"}
@@ -134,9 +138,32 @@ xyplot(signal ~ dist | factor(mac) ,
 par(oldPar)
 ```
 
-Of particular note is orientation's effect on signal strength. We explore this effect in more detail shortly. 
+To prepare the training and test data for use in a *k*-nearest neighbors model, we aggregate records based on (x,y) position. Signal strengths from each access point for each position are mean-aggregated, forming a dataset where each record is unique based on the (x,y) position. Each position contains a vector of six signal strength values. A sample of this format can be seen in Table 2.
 
-With these analysis results in mind, we determine the impact of Nolan and Temple Lang's decision to exclude a MAC address considered extraneous to their task of building an indoor positioning system. We also implement a weighted k nearest neighbors model to predict location inside of the building.
+```{r knn_training_example, include=TRUE, echo=FALSE, cache=TRUE}
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY")) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# build all of this into a funciton
+trainSS = reshapeSS(offlineSummary, varSignal = "avgSignal")
+kable(trainSS[1:5,], caption="Table 2: Formatted Dataset for KNN Use", row.names = FALSE)
+```
+
+Given previous analysis results, we determine the impact of Nolan and Temple Lang's decision to exclude a MAC address on the accuracy of their *k*-nearest neighbors model. We also implement a weighted *k*-nearest neighbors model to predict location inside of the building. 
 
 *Analysis of Extraneous MAC Address*
 
@@ -145,18 +172,12 @@ Dennis and Julien (Dennis)
 
 *Weighted K-Nearest Neighbors Implementation*
 
-## talk about how aggregate set is used and casted to form KNN dataset
+Nolan and Temple Lang implement a *k*-nearest neighbors model utilizing the mean of *k* known neighbors in the training data to predict the position of new, previously unseen records. These new records contain signal strengths from six access points on the building floor.
 
-Nolan and Temple Lang implement a k nearest neighbors model utilizing the mean of known neighbors' location in the training data to predict the position of previously unseen records. These new records contain signal strengths from six access points on the building floor.  
-
-Prior to model fitting, it is determined that the orientation of a reading has an impact on signal strength. For instance, when considering an x,y position of (2,12), MAC address 00:14:bf:b1:97:90 shows signal strength variability differences when comparing orientations. 
+Prior to model fitting, it is determined that the orientation of a reading has an impact on signal strength. For instance, when considering an x,y position of (2,12), MAC address 00:14:bf:b1:97:90 shows signal strength variability differences based on the orientation considered. 
 
 ```{r eda_signalstr, include=TRUE, echo=FALSE, cache=TRUE, fig.cap=cap}
 # INVESTIGATING SIGNAL STRENGTH
-
-# investigate variability of angle for each MAC given one x,y position
-# we exclude MAC 00:0f:a3:39:dd:cd here, can see that angle affects
-# the signal fr some mac addresses, especially those with stronger signals
 bwplot(signal ~ factor(angle) | mac, 
        data = offline, 
        subset = posX == 2 & posY == 12 
@@ -164,16 +185,167 @@ bwplot(signal ~ factor(angle) | mac,
        layout = c(2,3))
 cap <- "Figure 3: Angle Influence on Signal Strength for (x,y) Position (2,12)"
 
-#par(oldPar)
-#dev.off()
+```
+
+Nolan and Temple Lang identify an angle parameter as part of their *k*-nearest neighbors model. This parameter allows the model to account for multiple angles when considering training set records for predicting the location of new observations. While we do not explore the angle parameter in our analysis, we note that Nolan and Lang consider three angles when building the training set used for prediction in their *k*-nearest neighbor model. For every new prediction of location an aggregated training set is created considering three orientations. To maintain consistency, we preserve three orientations in our implementation of a weighted *k*-nearest neighbors model. This parameter value reduces bias and allows for multiple angles to influence the mean signal strength used for each observation in the training dataset.
+
+Implementing a weighted *k*-nearest neighbors model requires weighting each training observation associated with the new location we wish to predict. New location in this task means a previously unseen vector of six signal strengths. Training observations closer to the new observation are weighted heavily while training observations further away have smaller weights. The distance between any new observation and observations in the training data is calculated with Euclidean distance:
+
+$\sqrt{(S_1^*-S_1)^2+...+(S_6^*-S_6)^2}$
+
+Signal strengths (*S*) are considered for all six access points when calculating distance. this results in a distance calculation for each training observation given the new (test) observation. 
+
+These distances are sorted in ascending order. Weights are calculated based on the choice of *k*, or the number of observations in the training set to consider when predicting the location for the test observation. Thus, the *k* neighbors are training observations taken from the sorted list of distances. In the example of five neighbors, we utilize the five closest training observations based on Euclidean distance to predict the location of a new observation. Each of the five training observations used for prediction are weighted according to equation 2.
+
+$\frac{1/di}{\sum_{i=1}^{k}{1/di}}$
+
+For each of the *k* training observations, the numerator is represented as one over the distance between the training observation and the new observation. The denominator is the sum of each numerator for the *k* observations we are considering. The first neighbor (k=1) is the closest to the new observation, therefore the weight associated with the first neighbor is always the largest.
+
+Given weighting logic, we are able to form a vector of individual weights for each observation in the training dataset used for the *k*-nearest neighbors model. These weights are subsequently multiplied by the x and y locations of each *k* neighbor and summed to predict a weighted (x,y) position for the new record.
+
+```{r weighted_vec, include=FALSE, echo=FALSE, cache=TRUE}
+
+
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+  offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
+
+
+# weighted nearest neighbors, returns numerator of weight 1/distance
+findWtdNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
+  closest = order(dists) # orders distances ascending
+  closeXY = trainSubset[closest, 1:3 ]
+  weight = as.numeric(1/dists[closest]) 
+  return(cbind(closeXY, weight)) 
+}
+
+
+# weighted prediction vector results
+predXYwtd = function(newSignals, newAngles, trainData, 
+                     numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+  }
+  return(cbind(base[,2:3], wts))
+}
+
+onlineSummaryAdj = onlineSummary[, "X00.0f.a3.39.dd.cd" != names(onlineSummary)]
+head(predXYwtd(onlineSummaryAdj[1,6:11], onlineSummary[,4], offlineSummary, numAngles = 3, k=3))
 
 ```
 
-Nolan and Temple Lang identify an angle parameter as part their k nearest neighbors model. This parameter allows the model to account for multiple angles when considering training set records for predicting the location of new observations. While we do not explore the angle parameter in our analysis, we do note that Nolan and Lang consider three angles when building the training set used for prediction in their k nearest neighbor model. For consistency, we maintain three angles in our implementation of a weighted k nearest neighbors model. This parameter value reduces bias and allows for multiple angles to influence the mean signal strength used for each observation in the training dataset.
+```{r selectTrain, include=FALSE, echo=FALSE, cache=TRUE}
 
-Implementing a weighted k nearest neighbors model 
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+  offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
 
-$\frac{1/di}{\sum_{i=1}^{k}{1/di}}$
+
+# FINDING NEAREST NEIGHBORS
+# takes numeric vector of 6 new signal strengths and result of selectTrain() training set
+findNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) # this inverts, places x,y on cols when called as.numeric
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) # this gets our distance (euclidean)
+  closest = order(dists) # orders our distances in ascending
+  return(trainSubset[closest, 1:3 ]) # returns the subset from training with closest distances, gives xy ID, x, y
+}
+
+
+# weighted nearest neighbors, returns numerator of weight 1/distance
+findWtdNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
+  closest = order(dists) # orders distances ascending
+  closeXY = trainSubset[closest, 1:3 ]
+  weight = as.numeric(1/dists[closest]) # calculate numerator for weights, we'll filter these based on K in predXY
+  return(cbind(closeXY, weight)) # add in numerator for our weights
+}
+
+# prediction using nearest neighbors from training set
+predXY = function(newSignals, newAngles, trainData, 
+                  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of angles in proximity
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # find nearest neighbors, return closest in training set
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], 
+                                    function(x) mean(x[1:k]))) # take a simple average of x,y positions
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+
+# weighted prediction
+predXYwtd = function(newSignals, newAngles, trainData, 
+                     numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals
+    closeXY[[i]] = base[,1:3] # append weighted xy, x, y values to list
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now, and x,y is already weighted!
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+
+```
 
 
 ## Results
@@ -202,7 +374,7 @@ Dennis and Julien (Julien)
 
 [8] http://www.rfidjournal.com/articles/view?9266 - Toronto General Hospital Uses RTLS to reduce cross-contamination
 
-[9] Yi, Xun; Paulet, Russel; Bertino, Elisa; Varadharajan, Vijay. "Practical k Nearest Neighbor Queries with Location Privacy" (2014). Cyver Center Publications.  Paper 592.  Retrieved from http://dx.doi.org/10.1109/ICDE.2014.6816688.
+[9] Yi, Xun; Paulet, Russel; Bertino, Elisa; Varadharajan, Vijay. "Practical *k*-nearest Neighbor Queries with Location Privacy" (2014). Cyver Center Publications.  Paper 592.  Retrieved from http://dx.doi.org/10.1109/ICDE.2014.6816688.
 
 [10] https://www.raytheon.com/news/technology_today/2015_i1/facilitymod.html - Raytheon Missile Facility Uses Advanced Technology
 

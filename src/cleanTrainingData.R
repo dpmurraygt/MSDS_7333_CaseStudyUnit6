@@ -1,9 +1,6 @@
-# this is the makefile for cleaning the training dataset used for analysis
+# CREATING A FUNCTION TO PREPARE THE TRAINING DATA
+# this reads 7 macs, adjust for analysis purposes 
 
-# CREATING A FUNCTION TO PREPARE THE DATA
-
-dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/Data/'
-setwd(dir)
 
 processLine = function(x)
 {
@@ -24,7 +21,7 @@ roundOrientation = function(angles) {
 }
 
 readData = 
-  function(filename = 'offline.final.trace.txt', 
+  function(filename = 'Data/offline.final.trace.txt', 
            subMacs = c("00:0f:a3:39:e1:c0", "00:0f:a3:39:dd:cd", "00:14:bf:b1:97:8a",
                        "00:14:bf:3b:c7:c6", "00:14:bf:b1:97:90", "00:14:bf:b1:97:8d",
                        "00:14:bf:b1:97:81"))
@@ -65,4 +62,4 @@ readData =
   }
 
 offline = readData()
-write.csv(offline, file="offline.csv", row.names=FALSE)
+write.csv(offline, file="Data/offline.csv", row.names=FALSE)
