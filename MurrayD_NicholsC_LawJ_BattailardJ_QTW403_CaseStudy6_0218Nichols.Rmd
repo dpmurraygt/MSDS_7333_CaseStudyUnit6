@@ -1,0 +1,1314 @@
+---
+title: 'Indoor Positioning Sytems: An Exploration Using K-Nearest Neighbors'
+author: "Dennis Murray, Jared Law, Julien Battaillard, Cory Nichols"
+date: "February 20th, 2018"
+output:
+  html_document:
+    df_print: paged
+  word_document:
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE, echo=FALSE}
+dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/'
+knitr::opts_knit$set(root.dir = dir)
+```
+
+```{r import_libs, include=FALSE, echo=FALSE}
+library(tidyr)
+library(dplyr)
+library(fields)
+library(lattice)
+library(knitr)
+```
+
+```{r make, include=FALSE, echo=FALSE, cache=TRUE}
+source('src/MakeFile.R')
+```
+
+## Abstract
+GPS navigation applications on a cellular phone and tracking an Amazon package online utilize real-time location systems (RTLS) to communicate critical location information to consumers. With a simple button press, users can track their packages and map routes to a destination. RTLS is also a component in inventory management and logistics for many different industries. Companies such as Dell Computer pioneered inventory management systems utilizing RTLS (Ojo-Osagie 1). 
+
+Another common use of a real-time location system is position identification inside of a room. These RTLS applications are called indoor positioning systems. In this paper, we investigate the effect of removing an access point on the accuracy of an indoor positioning system developed by Nolan and Temple Lang (2). We also improve upon their location determination methods by implementing a weighted *k*-nearest neighbors model for position identification. Results show that (results for MAC analysis here). Additionally, we find greater success using a weighted *k*-nearest neighbors approach in determining location.
+
+## Introduction
+
+Real-time location systems (RTLS) automatically track and identify the location of people or objects wirelessly. A classic RTLS example is location tracking of objects in a room. This RTLS application is called an indoor positioning system. Hardware such as bluetooth tags or cell phones are used as mobile beacons to communicate with strategically placed access points around the room. These beacons can be attached to people, other devices, and even robots (1). A beacon produces a signal that is read by the access points around the room. Each signal provides data used to determine the location of the mobile device within the room. Software applications utilizing triangulation, trilateration or a combination of location determination algorithms actively translate this location data and produce usable interfaces for people to identify the location of a beacon.
+
+Applications for RTLS are vast and extend beyond a simple enclosed space. Advances in wireless technologies and proliferation of tracking tags have made real-time location systems ubiquitous in manufacturing, inventory management, and navigation (3). Identifying the current location of a package is a popular use of RTLS technology. Tracking previous location history and tracing locations to predict future locations are also common tasks. Additionally, active tags can provide critical data on the temperature of a package or the blood sugar level of a patient along with location information.
+
+In this paper, we extend previous analysis by Nolan and Temple Lang (2) using indoor wireless signal strength data provided by Mannheim University. These data are generated from a single mobile device at 166 locations on one floor of a multi-story building. Eight orientation angles are considered at each location and 110 readings are taken for each (x,y) location, angle combination. Seven access points provide signal strength data to the mobile device. 
+
+In their analysis, Nolan and Temple Lang implement an indoor positioning system using signal strength data and an average-based *k*-nearest neighbors model. The model is used to predict the location of a mobile device using previously unseen signal strength data. The authors drop an access point from their training data set and use six of the seven access points for their *k*-nearest neighbors model. 
+
+We investigate the accuracy of the authors' *k*-nearest neighbors model utilizing the access point previously not considered. We also extend the average-based  *k*-nearest neighbors approach by implementing a weighted *k*-nearest neighbors model for predicting the location of previously unseen signal strength data.
+
+## Literature Review
+
+There are a multitude of techniques for RTLS to work such as radio frequency identification (RFID), infrared laser line-of-sight systems, and ultrasound systems. These systems allow for location data to be passed through objects  or provide more precise indoor locations. The techniques used to analyze the position of the identification tags within each system can vary, as well. Though we utilize *k*-nearest neighbors in this paper, other location prediction methods are used depending on wireless tag communication protocols (4).
+
+There are multiple uses for RTLS technology such as inventory management, livestock tracking, and personnel tracking. Healthcare has continued to develop ways to utilize such technology to limit cross-contamination. At the Toronto University Health Network, a real-time location system allows the university to locate personnel and equipment entering a contaminated area. The RTLS then sends an alert if the person or equipment hasn't been decontaminated (5). Another example is a patent filed for tracking livestock that would assist ranchers and farmers in keeping location information on their herds.This system utilizes the distance value transmitted from the reader and k-nearest neighbor analysis to determine location (6).
+
+RTLS research shows broad applications for *k*-nearest neighbors methods. The technology will continue to advance as businesses continue using RTLS to improve fulfillment requests using robotics (3) and in warehouse distribution (7). Defense contractors utilize RTLS to assist in moving products from one location to another in their industrial processes to increase safety, efficiency and reduce human overhead (8).
+
+## Methods
+
+In this paper, we investigate the impact of Nolan and Temple Lang's decision to exclude an extraneous access point from their indoor positioning system. We also implement a weighted *k*-nearest neighbors model and compare it to an average-based *k*-nearest neighbors model they developed. Prior to discussing methods for accomplishing our two analysis objectives, we provide salient findings about the raw data and the transformations taken to prepare the data for analysis.
+
+The raw data is split into a training set and a test set. We focus on the training data set for analysis purposes. The training data set contains 151,392 unique lines detailing the (x,y) position and orientation of a mobile device. At each position and orientation combination, 110 signal strength readings are obtained between the mobile device and seven access points. In addition to signal strength readings, variables such as the POSIX time of the reading and the physical MAC address for each access point are also captured.
+
+After excluding extraneous access points, normalizing orientation values, and translating time variables, a dataset for analysis is created. The data set format can be seen in Table 1.
+
+```{r offline_sample, include=TRUE, echo=FALSE, cache=TRUE, fig.cap=cap}
+offline = read.csv('data/offline.csv', stringsAsFactors = FALSE)
+subMacs = names(sort(table(offline$mac), decreasing = TRUE))[1:7]
+kable(offline[1:5,], caption="Table 1: Formatted Dataset for Analysis", row.names = FALSE)
+cap <- "Table 1: Transformed Offline Dataset Structure"
+```
+
+Key exploratory data analysis results help to form assumptions and methods for an indoor positioning system using a *k*-nearest neighbors model. Non-normal, multi-modal signal distributions are found when considering signal strength and the angle of the mobile at each (x,y) location reading. This indicates angle has an effect on signal strength. Figure 2 displays this analysis finding for one access point at a single position.
+
+```{r angle_density_plot, include=TRUE, echo=FALSE, cache=TRUE, fig.cap=cap}
+oldPar = par(mar = c(3.1, 3, 1, 1))
+densityplot( ~ signal | factor(angle), 
+             data = offline,
+             subset = posX == 24 & posY == 4 & 
+                         mac == "00:0f:a3:39:e1:c0",
+             bw = 0.5, plot.points = FALSE)
+par(oldPar)
+cap <- "Figure 1: Angle Based Density Plots for 00:0f:a3:39:e1:c0"
+
+```
+
+The transformed dataset is subsequently aggregated by (x,y) position, angle, and MAC address. Additional analysis using the aggregated data shows higher variability for stronger signal strengths. Also, the relationship between signal and distance shows that signal strength weakens as distance increases. This negative relationship is expected and can be seen for each access point in Figure 2.
+
+```{r summary_creation, include=FALSE, echo=FALSE, cache=TRUE}
+# create table of summary stats by Location, Angle and AP
+offline$posXY = paste(offline$posX, offline$posY, sep = "-") # concat x,y
+
+byLocAngleAP = with(offline, 
+                    by(offline, list(posXY, angle, mac), 
+                       function(x) x))
+
+# calculate summary statistics, reduce down to single summary line
+signalSummary = 
+  lapply(byLocAngleAP,            
+         function(oneLoc) {
+           ans = oneLoc[1, ]
+           ans$medSignal = median(oneLoc$signal)
+           ans$avgSignal = mean(oneLoc$signal)
+           ans$num = length(oneLoc$signal)
+           ans$sdSignal = sd(oneLoc$signal)
+           ans$iqrSignal = IQR(oneLoc$signal)
+           ans
+           })
+
+# bind all the summary lines together
+offlineSummary = do.call("rbind", signalSummary)
+
+# onlineSummary includes ALL MACS (filter out as needed!)
+onlineSummary = read.csv('Data/onlineSummary.csv', stringsAsFactors = FALSE)
+
+```
+
+```{r xyplot, include=TRUE, echo=FALSE, cache=TRUE, fig.cap="Figure 2: Relationship Between Signal and Distance"}
+# exclude mac at position 2: "00:0f:a3:39:dd:cd"
+offlineSummary = subset(offlineSummary, mac != subMacs[2])
+
+# create a mtrix with relevant positions for six access points on floor plan
+AP = matrix(c( 7.5, 6.3, 2.5, -.8, 12.8, -2.8,  
+                1, 14, 33.5, 9.3, 33.5, 2.8),
+            ncol = 2, byrow = TRUE,
+            dimnames = list(subMacs[-2], c("x", "y") ))
+
+# relationship between signal stregnth and distance from AP
+# distances from locations of the device emitting vs access point receiving
+diffs = offlineSummary[ , c("posX", "posY")] - AP[ offlineSummary$mac, ] 
+
+offlineSummary$dist = sqrt(diffs[ , 1]^2 + diffs[ , 2]^2)
+
+oldPar = par(mar = c(3.1, 3.1, 1, 1))
+
+# simplified
+xyplot(signal ~ dist | factor(mac) , 
+       data = offlineSummary,
+       xlab ="distance")
+par(oldPar)
+```
+
+To prepare the training and test data for use in a *k*-nearest neighbors model, we aggregate records based on (x,y) position. Signal strengths from each access point for each position are mean-aggregated, forming a dataset where each record is unique based on the (x,y) position. Each position contains a vector of six signal strength values. A sample of this format can be seen in Table 2.
+
+```{r knn_training_example, include=TRUE, echo=FALSE, cache=TRUE}
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY")) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# build all of this into a funciton
+trainSS = reshapeSS(offlineSummary, varSignal = "avgSignal")
+kable(trainSS[1:5,], caption="Table 2: Formatted Dataset for KNN Use", row.names = FALSE)
+```
+
+Given previous analysis results, we assess the impact of Nolan and Temple Lang's decision to exclude a MAC address on the accuracy of their *k*-nearest neighbors model. We also implement a weighted *k*-nearest neighbors model to predict location inside of the building. 
+
+*Analysis of Extraneous MAC Address*
+
+Dennis and Julien (Dennis)
+
+
+*Weighted K-Nearest Neighbors Implementation*
+
+Nolan and Temple Lang implement a *k*-nearest neighbors model utilizing the mean of *k* known neighbors in the training data to predict the position of previously unseen records. These records contain signal strengths from six access points on the building floor.
+
+Prior to model fitting, it is determined that the orientation of a reading has an impact on signal strength. For instance, when considering an x,y position of (2,12), MAC address 00:14:bf:b1:97:90 shows signal strength variability differences based on the orientation considered. 
+
+```{r eda_signalstr, include=TRUE, echo=FALSE, cache=TRUE, fig.cap=cap}
+# INVESTIGATING SIGNAL STRENGTH
+bwplot(signal ~ factor(angle) | mac, 
+       data = offline, 
+       subset = posX == 2 & posY == 12 
+                & mac != "00:0f:a3:39:dd:cd", 
+       layout = c(2,3))
+cap <- "Figure 3: Angle Influence on Signal Strength for (x,y) Position (2,12)"
+
+```
+
+Nolan and Temple Lang identify an angle parameter as part of their *k*-nearest neighbors model. This parameter allows the model to account for multiple angles when considering training set records for predicting the location of new observations. While we do not explore the angle parameter in our analysis, we note that Nolan and Lang consider three angles when building the training set used for prediction in their *k*-nearest neighbors model. For every new prediction of location, a training set is created using three orientations. To maintain consistency, we preserve three orientations in our implementation of a weighted *k*-nearest neighbors model. This parameter value reduces bias and allows for multiple angles to influence the mean signal strength used for each observation in the training dataset.
+
+Implementing a weighted *k*-nearest neighbors model requires weighting each training observation associated with the new location we wish to predict. New location in this task means a previously unseen vector of six signal strengths. Training observations closer to the new observation are weighted heavily, while training observations further away have smaller weights. The distance between any new observation and observations in the training data is calculated with Euclidean distance:
+
+Equation 1: Euclidean Distance
+
+$\sqrt{(S_1^*-S_1)^2+...+(S_6^*-S_6)^2}$
+
+Signal strengths (*S*) are considered for all six access points when calculating distance. This results in a distance calculation for each training observation given each new observation. 
+
+These distances are sorted in ascending order. Weights are calculated based on the choice of *k*, or the number of observations in the training set to consider when predicting the location for the new observation. Thus, the *k* neighbors are training observations taken from the sorted list of distances. In the example of five neighbors, we utilize the five closest training observations based on Euclidean distance to predict the location of a new observation. Each of the five training observations used for prediction are weighted according to Equation 2.
+
+Equation 2: Nearest Neighbors Weighting
+
+$\frac{1/di}{\sum_{i=1}^{k}{1/di}}$
+
+For each of the *k* training observations, the numerator is represented as one over the distance between the training observation and the new observation. The denominator is the sum of each numerator for the *k* observations we are considering. The first neighbor (k=1) is the closest to the new observation, therefore the weight associated with the first neighbor is always the largest.
+
+Given previous weighting logic, we are able to form a vector of individual weights for each observation in the training dataset used for the *k*-nearest neighbors model. These weights are subsequently multiplied by the x and y locations of each *k* neighbor and summed to predict a weighted (x,y) position for the new observation. To ensure proper predictions, only the weights for each *k* neighbor is considered. All other neighbors assume a weight of zero. Given a new observation, the weight vector can be seen for three neighbors in Table 3.
+
+```{r weighted_vec, include=TRUE, echo=FALSE, cache=TRUE}
+
+
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+  offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
+
+
+# weighted nearest neighbors, returns numerator of weight 1/distance
+findWtdNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
+  closest = order(dists) # orders distances ascending
+  closeXY = trainSubset[closest, 1:3 ]
+  weight = as.numeric(1/dists[closest]) 
+  return(cbind(closeXY, weight)) 
+}
+
+
+# weighted prediction vector results
+predXYwtd = function(newSignals, newAngles, trainData, 
+                     numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+  }
+  return(cbind(base[,2:3], wts))
+}
+
+onlineSummaryAdj = onlineSummary[, "X00.0f.a3.39.dd.cd" != names(onlineSummary)]
+weight_ex <- predXYwtd(onlineSummaryAdj[1,6:11], onlineSummary[,4], offlineSummary, numAngles = 3, k=3)
+kable(weight_ex[1:5,], caption="Table 3: Weight Vectors for k=3", row.names = FALSE)
+```
+
+```{r selectTrain, include=FALSE, echo=FALSE, cache=TRUE}
+
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+  offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
+
+
+# FINDING NEAREST NEIGHBORS
+# takes numeric vector of 6 new signal strengths and result of selectTrain() training set
+findNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) # this inverts, places x,y on cols when called as.numeric
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) # this gets our distance (euclidean)
+  closest = order(dists) # orders our distances in ascending
+  return(trainSubset[closest, 1:3 ]) # returns the subset from training with closest distances, gives xy ID, x, y
+}
+
+
+# weighted nearest neighbors, returns numerator of weight 1/distance
+findWtdNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
+  closest = order(dists) # orders distances ascending
+  closeXY = trainSubset[closest, 1:3 ]
+  weight = as.numeric(1/dists[closest]) # calculate numerator for weights, we'll filter these based on K in predXY
+  return(cbind(closeXY, weight)) # add in numerator for our weights
+}
+
+# prediction using nearest neighbors from training set
+predXY = function(newSignals, newAngles, trainData, 
+                  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of angles in proximity
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # find nearest neighbors, return closest in training set
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], 
+                                    function(x) mean(x[1:k]))) # take a simple average of x,y positions
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+
+# weighted prediction
+predXYwtd = function(newSignals, newAngles, trainData, 
+                     numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals
+    closeXY[[i]] = base[,1:3] # append weighted xy, x, y values to list
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now, and x,y is already weighted!
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+
+```
+
+In summary, each new observation we wish to predict is compared to the training data set given the new observation's orientation. This is the "lazy learning" for which *k*-nearest neighbors is known. A model is never fit to the data, we simply utilize the existing training data for prediction. A unique weight vector is formed based on the number of neighbors *k* and position predictions are obtained by multiplying and summing these weights for each training observation's (x,y) position. 
+
+Nolan and Temple Lang's average-based method considers the mean of each neighbor for prediction. This can lead to skewness in predictions as averages are not resistant to outliers. Weighting neighbors, on the other hand, partially corrects for the skewness seen using averages.
+
+We formally compare our weighted *k*-nearest neighbors method to Nolan and Temple Lang's average-based method in the results section.
+
+## Results
+*MAC Address Conclusions**
+
+*KNN Conclusions*
+Cory and Dennis for each methods section above since they kind of go hand in hand
+
+## Conclusion and Future Work
+Dennis and Julien (Julien)
+
+One of the ethical challenges associated with real-time location systems is patient or worker confidentiality. Although not addressed in this assignment, privacy is still a significant concern for most businesses. One solution was proposed in Yi, et al (citation), where they propose to utilize the Paillier public-key cryptosystem in the *k*-nearest neighbors query for the location. This provides the end-user with both location and data privacy. This is strictly in a more request oriented type, however reversing such technology for use in business can be achieved while maintaining a person’s privacy and are proven to be more efficient than current methodologies (9).
+
+## References
+1. Ojo-Osagie, O. “Dells Just In Time Inventory Management System.” Academia.edu, www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system.
+
+2. Nolan, D., Temple Lang, D. DATA SCIENCE IN R: a Case Studies Approach to Computational Reasoning and Problem Solving. CRC PRESS, 2017.
+
+3. Winick, E. “Amazon's Investment in Robots Is Eliminating Human Jobs.” MIT Technology Review, 4 Dec. 2017, www.technologyreview.com/the-download/609672/amazons-investment-in-robots-is-eliminating-human-jobs/.
+
+4. Boulos, Maged N Kamel, and Geoff Berry. “Real-Time Locating Systems (RTLS) in Healthcare: a Condensed Primer.” International Journal of Health Geographics, BioMed Central, 28 June 2012, www.ncbi.nlm.nih.gov/pmc/articles/PMC3408320/.
+
+5. Swedberg, C. “Toronto General Hospital Uses RTLS to Reduce Infection Transmission.” RFID Journal, 28 Feb. 2012, www.rfidjournal.com/articles/view?9266.
+
+6. Chung, Won. “RTLS and Livestock Management System.” Google Patents, Google, 10 Sept. 2010, patents.google.com/patent/US20120065483A1/en.
+
+7. Ding, Bin, et al. “Application of RTLS in Warehouse Management Based on RFID and Wi-Fi.” IEEE Xplore, 12 Oct. 2008, ieeexplore.ieee.org/abstract/document/4679157/.
+
+8. Hidalgo, Jeff. “Raytheon Missile Facility Modernized by Advanced Technologies.” Raytheon Company: Technology Today , 2015, www.raytheon.com/news/technology_today/2015_i1/facilitymod.html.
+
+CLEAN UP
+
+[4] http://searchmobilecomputing.techtarget.com/definition/real-time-location-system-RTLS
+
+[9] Yi, Xun; Paulet, Russel; Bertino, Elisa; Varadharajan, Vijay. "Practical *k*-nearest Neighbor Queries with Location Privacy" (2014). Cyver Center Publications.  Paper 592.  Retrieved from http://dx.doi.org/10.1109/ICDE.2014.6816688.
+
+
+
+
+```{r data_prep, eval=FALSE}
+# This is the code from Nolan and Lang Chapter 1
+# this chunk has been moved to a makefile for reproducible research purposes
+options(digits = 2)
+
+
+# Read in the text file to a matrix called txt
+txt = readLines("Data/offline.final.trace.txt")
+
+# get a count of lines that have a # in the first character location 
+sum(substr(txt, 1, 1) == "#")
+
+# total lines in the txt matrix
+length(txt)
+
+# as a test, strsplit the 4th line on semicolons, print to screen
+strsplit(txt[4], ";")[[1]]
+
+# store results of string of the 4th line to a vector
+tokens = strsplit(txt[4], "[;=,]")[[1]]
+
+# print tokens 1:10 to screen
+tokens[1:10]
+
+# extract the 2nd, 4th, 6:8 and 10th elements to the screen
+# these tokens make up the handheld device
+tokens[c(2, 4, 6:8, 10)]
+
+# get features for readings (all else not == handheld device)
+tokens[ - ( 1:10 ) ]
+
+# assign a matrix of everything except elements 1:10 to a 4 coloumn matrix called tmp
+# build a matrix for each section of the data and bind them together using cbind
+tmp = matrix(tokens[ - (1:10) ], ncol = 4, byrow = TRUE) # get all signals
+mat = cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow = nrow(tmp), # repeat handheld device data
+                   ncol = 6, byrow = TRUE), 
+            tmp)
+#print shape of mat to screen
+dim(mat)
+
+# make this extendable, create function to repeat process for each line in dataset
+# this will create individual matrices for each line in the data (not efficient)
+processLine =
+function(x)
+{
+  tokens = strsplit(x, "[;=,]")[[1]]
+  tmp = matrix(tokens[ - (1:10) ], ncol = 4, byrow = TRUE)
+  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow = nrow(tmp),
+               ncol = 6, byrow = TRUE), tmp)
+}
+
+# apply to 17 lines of first file at x,y = 0,0 and pos = 0.0
+# creates 17 matrices, returns them in a list
+tmp = lapply(txt[4:20], processLine)
+
+# count the number of records in each matrix created
+# use sapply (preserves dimensions tmp) to show the number of rows in each row in tmp
+sapply(tmp, nrow)
+
+# stack the matrices using rbind and do.call
+offline = as.data.frame(do.call("rbind", tmp))
+dim(offline)
+
+# now do this for the entire dataset
+# create a list called lines that contains the lines that don't start with a # 
+lines = txt[ substr(txt, 1, 1) != "#" ]
+tmp = lapply(lines, processLine)
+
+
+# adjust induction function for issue where no readings for a position x,y and orientation
+# discard if we only find tokens for handheld device
+processLine = function(x)
+{
+  tokens = strsplit(x, "[;=,]")[[1]]
+  
+  if (length(tokens) == 10)  # this is the adjustment, checks to see if we have signal responses, if not, returns null
+    return(NULL)
+ 
+  tmp = matrix(tokens[ - (1:10) ], ncol= 4, byrow = TRUE)
+  cbind(matrix(tokens[c(2, 4, 6:8, 10)], nrow(tmp), 6, 
+               byrow = TRUE), tmp)
+}
+
+options(error = recover, warn = 1)
+tmp = lapply(lines, processLine)
+offline = as.data.frame(do.call("rbind", tmp), 
+                        stringsAsFactors = FALSE)
+
+# offline dataframe in tidy format with readings down instead of across
+dim(offline)
+
+# clean data and build represenation for analysis
+
+# rename the columns, transform numeric values
+names(offline) = c("time", "scanMac", "posX", "posY", "posZ", 
+                   "orientation", "mac", "signal", 
+                   "channel", "type")
+
+numVars = c("time", "posX", "posY", "posZ", 
+            "orientation", "signal")
+offline[ numVars ] =  lapply(offline[ numVars ], as.numeric)
+
+# drop all vars with 1 as mode and remove type variable
+# only want to keep access point (type 3)
+offline = offline[ offline$type == "3", ]
+offline = offline[ , "type" != names(offline) ] # this filters out type from columns
+dim(offline)
+
+# transform time from ms to s in order to get POSIXt format
+offline$rawTime = offline$time
+offline$time = offline$time/1000 # convert from ms to s
+class(offline$time) = c("POSIXt", "POSIXct")
+
+# check the class of each variable in our dataset
+unlist(lapply(offline, class))
+
+# summary stats on our numeric vars
+summary(offline[, numVars])
+
+# only one MAC for our scanning device: 00:02:2D:21:0F:33
+summary(sapply(offline[ , c("mac", "channel", "scanMac")],
+                as.factor))
+
+# remove scanMac and posZ from offline df: no posZ in data and only one scanMac
+offline = offline[ , !(names(offline) %in% c("scanMac", "posZ"))]
+
+# exploring orientation, far more than 8 values for orientation
+length(unique(offline$orientation))
+
+# values distributed in clusters around what we'd expect
+plot(ecdf(offline$orientation))
+
+# build pdf export
+#pdf(file = "Images/Geo_ECDFOrientation.pdf", width = 10, height = 7)
+oldPar = par(mar = c(4, 4, 1, 1))
+plot(ecdf(offline$orientation), pch = 19, cex = 0.3,
+     xlim = c(-5, 365), axes = FALSE,
+     xlab = "orientation", ylab = "Empirical CDF", main = "")
+box()
+axis(2)
+axis(side = 1, at = seq(0, 360, by = 45))
+par(oldPar)
+#dev.off()
+
+
+#pdf(file = "Images/Geo_DensityOrientation.pdf", width = 10, height = 5)
+oldPar = par(mar = c(4, 4, 1, 1))
+plot(density(offline$orientation, bw = 2), 
+ xlab = "orientation", main = "")
+par(oldPar)
+#dev.off()
+
+# to normalize, build function to round off orientation
+roundOrientation = function(angles) {
+  refs = seq(0, by = 45, length  = 9)
+  q = sapply(angles, function(o) which.min(abs(o - refs))) # which angle is orientation value closest to? get index
+  c(refs[1:8], 0)[q] # map index to reference positions, taking care to make sure 360 == 0
+}
+
+offline$angle = roundOrientation(offline$orientation)
+
+# boxplot showing transforms of orientation to nearest 45 deg angle
+with(offline, boxplot(orientation ~ angle,
+                      xlab="nearest 45 degree angle",
+                      ylab="orientation"))
+
+#pdf(file = "Images/Geo_BoxplotAngle.pdf", width = 10)
+with(offline, boxplot(orientation ~ angle,
+                      xlab="nearest 45 degree angle",
+                      ylab="orientation"))
+oldPar = par(mar = c(4, 4, 1, 1))
+par(oldPar)
+#dev.off()
+
+
+# Exploring MAC Addresses
+c(length(unique(offline$mac)), length(unique(offline$channel)))
+
+# check counts of observationsf or MAC addresses
+table(offline$mac)
+
+# obviously extra MAC addresses, some with not many readings, get rid of those
+# keep records from 7 top read devices (one more than we need)
+subMacs = names(sort(table(offline$mac), decreasing = TRUE))[1:7]
+
+# keep rows with subMacs identified only, discarding others in training set
+offline = offline[ offline$mac %in% subMacs, ]
+
+# create a table of counts for mac and channel and filter it
+macChannel = with(offline, table(mac, channel))
+apply(macChannel, 1, function(x) sum(x > 0))
+# one unique channel per MAC
+
+# eliminate channel from offline dataset, not necessary for analysis
+offline = offline[ , "channel" != names(offline)]
+```
+
+```{r data_prep_func, eval=FALSE}
+# EXPLORING POSITION OF HANDHELD DEVICE
+# this chunk has been moved to a makefile for reproducible research purposes
+
+# how many unique x,y positions?
+locDF = with(offline, 
+             by(offline, list(posX, posY), function(x) x))
+length(locDF)
+# way too many, > 166 quoted
+
+# which locations are empty: 310
+sum(sapply(locDF, is.null))
+
+# remove nulls and we get 166 unique x,y locs, good to go
+locDF = locDF[ !sapply(locDF, is.null) ]
+length(locDF)
+
+# get counts by x,y position, should be ~5300 110 readings * 8 angles * 6 positions 
+locCounts = sapply(locDF, nrow)
+
+locCounts = sapply(locDF, 
+                   function(df) 
+                     c(df[1, c("posX", "posY")], count = nrow(df)))
+
+class(locCounts)
+
+dim(locCounts)
+
+locCounts[ , 1:8]
+
+locCounts = t(locCounts)
+plot(locCounts, type = "n", xlab = "", ylab = "")
+text(locCounts, labels = locCounts[,3], cex = 0.8, srt = 45)
+
+#pdf(file = "Images/Geo_XYByCount.pdf", width = 10)
+oldPar = par(mar = c(3.1, 3.1, 1, 1))
+
+locCounts = t(locCounts)
+plot(locCounts, type = "n", xlab = "", ylab = "")
+text(locCounts, labels = locCounts[,3], cex = .8, srt = 45)
+
+par(oldPar)
+#dev.off()
+
+
+# CREATING A FUNCTION TO PREPARE THE DATA
+readData = 
+  function(filename = 'Data/offline.final.trace.txt', 
+           subMacs = c("00:0f:a3:39:e1:c0", "00:0f:a3:39:dd:cd", "00:14:bf:b1:97:8a",
+                       "00:14:bf:3b:c7:c6", "00:14:bf:b1:97:90", "00:14:bf:b1:97:8d",
+                       "00:14:bf:b1:97:81"))
+  {
+    txt = readLines(filename)
+    lines = txt[ substr(txt, 1, 1) != "#" ]
+    tmp = lapply(lines, processLine)
+    offline = as.data.frame(do.call("rbind", tmp), 
+                            stringsAsFactors= FALSE) 
+    
+    names(offline) = c("time", "scanMac", 
+                       "posX", "posY", "posZ", "orientation", 
+                       "mac", "signal", "channel", "type")
+    
+     # keep only signals from access points
+    offline = offline[ offline$type == "3", ]
+    
+    # drop scanMac, posZ, channel, and type - no info in them
+    dropVars = c("scanMac", "posZ", "channel", "type")
+    offline = offline[ , !( names(offline) %in% dropVars ) ]
+    
+    # drop more unwanted access points
+    offline = offline[ offline$mac %in% subMacs, ]
+    
+    # convert numeric values
+    numVars = c("time", "posX", "posY", "orientation", "signal")
+    offline[ numVars ] = lapply(offline[ numVars ], as.numeric)
+
+    # convert time to POSIX
+    offline$rawTime = offline$time
+    offline$time = offline$time/1000
+    class(offline$time) = c("POSIXt", "POSIXct")
+    
+    # round orientations to nearest 45
+    offline$angle = roundOrientation(offline$orientation)
+      
+    return(offline)
+  }
+
+offlineRedo = readData()
+
+# check for equality
+identical(offline, offlineRedo)
+
+# what variables did we use as global? these our are dependencies
+library(codetools)
+findGlobals(readData, merge =FALSE)$variables
+```
+
+```{r eda, eval=FALSE}
+# overall statistics for signal, range of -98 to -25 (lower is stronger)
+summary(offline$signal)
+
+#pdf(file = "Images/Geo_DensitySignalByMacAngle.pdf", width = 8, height = 12)
+oldPar = par(mar = c(3.1, 3, 1, 1))
+
+# investigate distribution of signals for one x,y & each angle
+# non-normality and dual-modal apparent, e.g. 00:14:bf:b1:97:8a, at 270 deg orientation
+densityplot( ~ signal | mac + factor(angle), 
+             data = offline,
+             subset = posX == 24 & posY == 4 & 
+                         mac != "00:0f:a3:39:dd:cd",
+             bw = 0.5, plot.points = FALSE)
+
+par(oldPar)
+#dev.off()
+
+#offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
+
+# create table of summary stats by Location, Angle and AP
+offline$posXY = paste(offline$posX, offline$posY, sep = "-") # concat x,y
+
+byLocAngleAP = with(offline, 
+                    by(offline, list(posXY, angle, mac), 
+                       function(x) x))
+
+# calculate summary statistics, reduce down to single summary line
+signalSummary = 
+  lapply(byLocAngleAP,            
+         function(oneLoc) {
+           ans = oneLoc[1, ]
+           ans$medSignal = median(oneLoc$signal)
+           ans$avgSignal = mean(oneLoc$signal)
+           ans$num = length(oneLoc$signal)
+           ans$sdSignal = sd(oneLoc$signal)
+           ans$iqrSignal = IQR(oneLoc$signal)
+           ans
+           })
+
+# bind all the summary lines together
+offlineSummary = do.call("rbind", signalSummary)     
+
+#pdf(file = "Images/Geo_BoxplotSignalSDByAvg.pdf", width = 10)
+oldPar = par(mar = c(3.1, 3, 1, 1))
+
+# create box and whisker for standard deviation for each avg Signal calculated in summary
+# shows us how variable signal ranges can be
+# more variable the stronger the signal is
+breaks = seq(-90, -30, by = 5)
+bwplot(sdSignal ~ cut(avgSignal, breaks = breaks),
+       data = offlineSummary, 
+       subset = mac != "00:0f:a3:39:dd:cd",
+       xlab = "Mean Signal", ylab = "SD Signal")
+
+par(oldPar)
+#dev.off()
+
+
+#pdf(file = "Images/Geo_ScatterMean-Median.pdf", width = 10)
+oldPar = par(mar = c(4.1, 4.1, 1, 1))
+
+# examine skewness of signal strength (avg - med signal) vs num observations
+# if normal should be higher densities in center
+with(offlineSummary,
+     smoothScatter((avgSignal - medSignal) ~ num,
+                   xlab = "Number of Observations", 
+                   ylab = "mean - median"))
+abline(h = 0, col = "#984ea3", lwd = 2)
+
+# fit LOESS line, shows that there is not a lot of difference or trend
+# skewness is minimal
+lo.obj = 
+  with(offlineSummary,
+       loess(diff ~ num, 
+             data = data.frame(diff = (avgSignal - medSignal),
+                               num = num)))
+
+lo.obj.pr = predict(lo.obj, newdata = data.frame(num = (70:120)))
+lines(x = 70:120, y = lo.obj.pr, col = "#4daf4a", lwd = 2)
+
+par(oldPar)
+#dev.off()
+ 
+
+# THE RELATIONSHIP BETWEEN SIGNAL AND DISTANCE
+
+# contour plot investigation
+# one MAC and one orientaiton
+oneAPAngle = subset(offlineSummary, 
+                    mac == subMacs[5] & angle == 0)
+# tps = thin plate splines, fit surface to signal strength values at observed locations
+# must pass a Z here, which is our avg signal, this will reflect our color
+smoothSS = Tps(oneAPAngle[, c("posX","posY")], 
+               oneAPAngle$avgSignal)
+
+vizSmooth = predictSurface(smoothSS)
+
+plot.surface(vizSmooth, type = "C")
+
+# add locations where measurements were taken
+points(oneAPAngle$posX, oneAPAngle$posY, pch=19, cex = 0.5)
+
+# create a function for charting purposes, to include multiple contour plots
+surfaceSS = function(data, mac, angle = 45) {
+  require(fields)
+  oneAPAngle = data[ data$mac == mac & data$angle == angle, ]
+  smoothSS = Tps(oneAPAngle[, c("posX","posY")], 
+                 oneAPAngle$avgSignal)
+  vizSmooth = predictSurface(smoothSS)
+  plot.surface(vizSmooth, type = "C", 
+               xlab = mac, ylab = "", xaxt = "n", yaxt = "n")
+  points(oneAPAngle$posX, oneAPAngle$posY, pch=19, cex = 0.5) 
+}
+
+parCur = par(mfrow = c(2,2), mar = rep(1, 4))
+
+# make 4 calls, shows corridor effect, signal strength of course strongest closest to AP
+mapply(surfaceSS, mac = subMacs[ rep(c(5, 1,2), each = 2) ], 
+       angle = rep(c(0, 135, 180), 2),
+       data = list(data = offlineSummary))
+ 
+par(parCur)
+
+# the two similar macs are subMacs[1,2]
+# remove similar MAC
+offlineSummary = subset(offlineSummary, mac != subMacs[2])
+
+# create a mtrix with relevant positions for six access points on floor plan
+AP = matrix( c( 7.5, 6.3, 2.5, -.8, 12.8, -2.8,  
+                1, 14, 33.5, 9.3,  33.5, 2.8),
+            ncol = 2, byrow = TRUE,
+            dimnames = list(subMacs[ -2 ], c("x", "y") ))
+
+AP
+
+# relationship between signal stregnth and distance from AP
+# distances from locations of the device emitting vs access point receiving
+diffs = offlineSummary[ , c("posX", "posY")] - 
+          AP[ offlineSummary$mac, ] # ordered and indexed by offlineSummary
+
+offlineSummary$dist = sqrt(diffs[ , 1]^2 + diffs[ , 2]^2)
+
+xyplot(signal ~ dist | factor(mac) + factor(angle), 
+       data = offlineSummary, pch = 19, cex = 0.3,
+       xlab ="distance")
+
+#pdf(file="Images/Geo_ScatterSignalDist.pdf", width = 7, height = 10)
+oldPar = par(mar = c(3.1, 3.1, 1, 1))
+
+xyplot(signal ~ dist | factor(mac) + factor(angle), 
+       data = offlineSummary, pch = 19, cex = 0.3,
+       xlab ="distance")
+par(oldPar)
+#dev.off()
+
+```
+
+```{r knn_work, eval=FALSE}
+
+# using only signals to APs from previously trained locations
+# need to reformat data so signal strength is across columns
+
+macs = unique(offlineSummary$mac)
+# read test data
+online = readData("Data/online.final.trace.txt", subMacs = macs)
+
+# set up unique XY
+online$posXY = paste(online$posX, online$posY, sep = "-")
+
+# 60 unique positions
+length(unique(online$posXY))
+
+# using only one orientation for each location
+tabonlineXYA = table(online$posXY, online$angle)
+tabonlineXYA[1:10, ]
+
+# pivot data to include signals across columns
+# take the mean of signal for each mac position along columns
+keepVars = c("posXY", "posX", "posY", "orientation", "angle")
+byLoc = with(online, 
+             by(online, list(posXY), 
+                function(x) {
+                  ans = x[1, keepVars]
+                  avgSS = tapply(x$signal, x$mac, mean)
+                  y = matrix(avgSS, nrow = 1, ncol = 6,
+                        dimnames = list(ans$posXY, names(avgSS)))
+                  cbind(ans, y)
+                }))
+
+onlineSummary = do.call("rbind", byLoc)  
+
+dim(onlineSummary)
+
+# rename
+names(onlineSummary)
+
+# ANGLE ALIGNMENT
+# want to find records in offline data (training) that have similar orientations to our new observations
+# orientation CAN impact signal strength as already evidenced visually in boxplots
+
+# finding nearest angles to help filter training data before aggregation:
+m = 3; angleNewObs = 230
+refs = seq(0, by = 45, length  = 8)
+nearestAngle = roundOrientation(angleNewObs)
+  
+if (m %% 2 == 1) {
+  angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+} else {
+  m = m + 1
+  angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  if (sign(angleNewObs - nearestAngle) > -1) 
+    angles = angles[ -1 ]
+  else 
+    angles = angles[ -m ]
+}
+angles = angles + nearestAngle
+angles[angles < 0] = angles[ angles < 0 ] + 360
+angles[angles > 360] = angles[ angles > 360 ] - 360
+
+# with desired angles, select observations from offlineSummary for training
+offlineSubset = 
+  offlineSummary[ offlineSummary$angle %in% angles, ]
+
+# then reshape training set to match test set, with signals across columns
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY")) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# build all of this into a funciton
+trainSS = reshapeSS(offlineSubset, varSignal = "avgSignal")
+
+# wrap code to select angles and reshape the training set
+# takes angle of new observation and associated angles from dataset using m
+# angleNewObs sets reference point
+# m is the number of angles to keep between 1 and 5 around reference point
+# signals is the training dataset to filter and reshape
+selectTrain = function(angleNewObs, signals = NULL, m = 1){
+  refs = seq(0, by = 45, length  = 8)
+  nearestAngle = roundOrientation(angleNewObs)
+  
+  if (m %% 2 == 1) 
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+  else {
+    m = m + 1
+    angles = seq(-45 * (m - 1) /2, 45 * (m - 1) /2, length = m)
+    if (sign(angleNewObs - nearestAngle) > -1) 
+      angles = angles[ -1 ]
+    else 
+      angles = angles[ -m ]
+  }
+  angles = angles + nearestAngle
+  angles[angles < 0] = angles[ angles < 0 ] + 360
+  angles[angles > 360] = angles[ angles > 360 ] - 360
+  angles = sort(angles) 
+  
+  offlineSubset = signals[ signals$angle %in% angles, ]
+  reshapeSS(offlineSubset, varSignal = "avgSignal")
+}
+
+# example
+# use angle of 130 for offline summary taking 135 and two closest angles for training set
+# reshape by aggregating, taking average of signals for each mac, angles considered
+train130 = selectTrain(130, offlineSummary, m = 3)
+
+head(train130)
+
+length(train130[[1]])
+
+
+
+
+# FINDING NEAREST NEIGHBORS
+# takes numeric vector of 6 new signal strengths and result of selectTrain() training set
+findNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) # this inverts, places x,y on cols when called as.numeric
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) # this gets our distance (euclidean)
+  closest = order(dists) # orders our distances in ascending
+  return(trainSubset[closest, 1:3 ]) # returns the subset from training with closest distances, gives xy ID, x, y
+}
+
+
+# weighted nearest neighbors, returns numerator of weight 1/distance
+findWtdNN = function(newSignal, trainSubset) {
+  diffs = apply(trainSubset[ , 4:9], 1, 
+                function(x) x - newSignal) 
+  dists = apply(diffs, 2, function(x) sqrt(sum(x^2)) ) 
+  closest = order(dists) # orders distances ascending
+  closeXY = trainSubset[closest, 1:3 ]
+  weight = as.numeric(1/dists[closest]) # calculate numerator for weights, we'll filter these based on K in predXY
+  return(cbind(closeXY, weight)) # add in numerator for our weights
+}
+
+# prediction using nearest neighbors from training set
+predXY = function(newSignals, newAngles, trainData, 
+                  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles) # select training set based on angle of test obs, num of angles in proximity
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # find nearest neighbors, return closest in training set
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], 
+                                    function(x) mean(x[1:k]))) # take a simple average of x,y positions
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+
+# weighted prediction
+predXYwtd = function(newSignals, newAngles, trainData, 
+                     numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    base = findWtdNN(newSignal = as.numeric(newSignals[i, ]), trainSS) # get matrix of x,y, numerator for weights
+    wts = append(base[1:k, 4]/sum(base[1:k, 4]), rep(0, nrow(base)-k))  # calculate weights based on K, append zero array for delta of len-k
+    base[, 2:3] = base[, 2:3]*wts # multiply weights array * matrix of x,y to get weighted vals
+    closeXY[[i]] = base[,1:3] # append weighted xy, x, y values to list
+  }
+  estXY = lapply(closeXY, # loop over each xy position-based dataframe
+                 function(x) sapply(x[ , 2:3], function(x) sum(x))) # sum all as neighbors > k == 0 now, and x,y is already weighted!
+  estXY = do.call("rbind", estXY) # pull predictions together for each observation xy in test set
+  return(estXY)
+}
+```
+
+```{r knnsummary, eval=FALSE}
+
+# this is testing on the test set... not optimal, validation is in the next section
+# we are also using 3 angles to aggregate and average for our training set to compare to
+estXYk1 = predXY(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 1)
+
+estXYk3 = predXY(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 3)
+
+estXYk3wtd = predXYwtd(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 3)
+
+# with 7 neighbors
+estXYk7 = predXY(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 7)
+
+estXYk7wtd = predXYwtd(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 7)
+
+
+actualXY = onlineSummary[ , c("posX", "posY")]
+
+calcError = 
+function(estXY, actualXY) 
+   sum( rowSums( (estXY - actualXY)^2) )
+
+sapply(list(estXYk1, estXYk3, estXYk3wtd), calcError, actualXY)
+
+# testing without CV folds, full test set, takes about 2 minutes
+# this is not proper error testing! 
+
+error_mean_vec = c()
+error_wtd_vec = c()
+
+for (i in seq(1,20,2)){
+  
+       mean = predXY(newSignals = onlineSummary[ , 6:11], 
+             newAngles = onlineSummary[ , 4], 
+             offlineSummary, numAngles = 3, k = i)
+       error_mean = calcError(mean, actualXY)
+       cat("With",i,"Neighbors Summary:\n\nMean KNN Error", error_mean)
+       error_mean_vec = append(error_mean_vec, error_mean)
+       
+       wtd = predXYwtd(newSignals = onlineSummary[ , 6:11], 
+             newAngles = onlineSummary[ , 4], 
+             offlineSummary, numAngles = 3, k = i)
+       error_wtd = calcError(wtd, actualXY)
+       cat("\nWeighted KNN Error", error_wtd)
+       error_wtd_vec = append(error_wtd_vec, error_wtd)
+       cat("\nWeighted KNN minus Mean KNN Error:", error_wtd - error_mean,"\n\n")
+} 
+
+
+# visualize learning curve based on squared error, iterating over K
+df = as_data_frame(cbind(error_mean_vec, error_wtd_vec, k=seq(1,20,2)))
+
+#pdf(file = "Images/KNNvWTDKNNfull.pdf", width = 10)
+oldPar = par(mar = c(4.1, 4.1, 1, 1))
+
+# plot learning curve
+library(ggplot2)
+df %>%
+ggplot()+
+  geom_line(mapping=aes(x=k, y=error_mean_vec, color="mean KNN"), show.legend = TRUE)+
+  geom_line(mapping=aes(x=k, y=error_wtd_vec, color="wtd KNN"), linetype="dashed", show.legend = TRUE)+
+  ggtitle('Learning Curve given K')+
+  labs(y="error")
+
+par(oldPar)
+#dev.off()
+
+
+# show errors on the floor
+floorErrorMap = function(estXY, actualXY, trainPoints = NULL, AP = NULL){
+  
+    plot(0, 0, xlim = c(0, 35), ylim = c(-3, 15), type = "n",
+         xlab = "", ylab = "", axes = FALSE)
+    box()
+    if ( !is.null(AP) ) points(AP, pch = 15)
+    if ( !is.null(trainPoints) )
+      points(trainPoints, pch = 19, col="grey", cex = 0.6)
+    
+    points(x = actualXY[, 1], y = actualXY[, 2], 
+           pch = 19, cex = 0.8 )
+    points(x = estXY[, 1], y = estXY[, 2], 
+           pch = 8, cex = 0.8 )
+    segments(x0 = estXY[, 1], y0 = estXY[, 2],
+             x1 = actualXY[, 1], y1 = actualXY[ , 2],
+             lwd = 2, col = "red")
+}
+
+trainPoints = offlineSummary[ offlineSummary$angle == 0 & 
+                              offlineSummary$mac == "00:0f:a3:39:e1:c0" ,
+                        c("posX", "posY")]
+
+#pdf(file="Images/GEO_FloorPlanK3Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+
+floorErrorMap(estXYk3, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+#dev.off()
+
+#pdf(file="Images/GEO_FloorPlanK1Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk1, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+#dev.off()
+
+#pdf(file="Images/GEO_FloorPlanK7Errors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk7, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+#dev.off()
+
+#pdf(file="Images/GEO_FloorPlanK7WTDErrors.pdf", width = 10, height = 7)
+oldPar = par(mar = c(1, 1, 1, 1))
+floorErrorMap(estXYk7wtd, onlineSummary[ , c("posX","posY")], 
+              trainPoints = trainPoints, AP = AP)
+par(oldPar)
+#dev.off()
+
+```
+
+```{r cross_validation, eval=FALSE}
+# cross validate over each location, using all 8 orientations and 6 MAC addresses
+# each fold has 166/11 = 15 locations
+# must randomly select
+v = 11
+# permute locations
+permuteLocs = sample(unique(offlineSummary$posXY))
+
+# to calculate folds, build a matrix with 11 columns and ~15 locations each
+permuteLocs = matrix(permuteLocs, ncol = v, 
+                     nrow = floor(length(permuteLocs)/v))
+
+# get the first validation fold from our offline data
+onlineFold = subset(offlineSummary, posXY %in% permuteLocs[ , 1])
+
+# must re-summarize each fold to match onlineSummary format
+# selecting orientation at random to create our CV folds
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# exclude MAC
+offline = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
+
+keepVars = c("posXY", "posX","posY", "orientation", "angle")
+
+# build CV base from offline data in general
+onlineCVSummary = reshapeSS(offline, keepVars = keepVars, 
+                            sampleAngle = TRUE)
+
+# an example of one fold
+onlineFold = subset(onlineCVSummary, 
+                    posXY %in% permuteLocs[ , 1])
+
+# this is our training set
+offlineFold = subset(offlineSummary,
+                     posXY %in% permuteLocs[ , -1])
+
+# using both methods with k = 3
+estFold = predXY(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+estFoldwtd = predXYwtd(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+actualFold = onlineFold[ , c("posX", "posY")]
+calcError(estFoldwtd, actualFold)
+
+# formally test K out to 20 neighbors
+K = 20
+err = rep(0, K)
+err_wtd = rep(0,K) # weighted error
+
+for (j in 1:v) {
+  onlineFold = subset(onlineCVSummary, 
+                      posXY %in% permuteLocs[ , j])
+  offlineFold = subset(offlineSummary,
+                       posXY %in% permuteLocs[ , -j])
+  actualFold = onlineFold[ , c("posX", "posY")]
+  
+  for (k in 1:K) {
+    estFold = predXY(newSignals = onlineFold[ , 6:11],
+                     newAngles = onlineFold[ , 4], 
+                     offlineFold, numAngles = 3, k = k)
+    err[k] = err[k] + calcError(estFold, actualFold)
+    
+    estFold_wtd = predXYwtd(newSignals = onlineFold[ , 6:11], # add in weighted calculations
+                     newAngles = onlineFold[ , 4], 
+                     offlineFold, numAngles = 3, k = k)
+    err_wtd[k] = err_wtd[k] + calcError(estFold_wtd, actualFold)
+  }
+}
+
+pdf(file = "Images/Geo_CVChoiceOfK.pdf", width = 8, height = 6)
+oldPar = par(mar = c(4, 3, 1, 1))
+plot(y = err, x = (1:K),  type = "l", lwd= 2,
+     ylim = c(0, 2100),
+     xlab = "Number of Neighbors",
+     ylab = "Sum of Square Errors")
+lines(y=err_wtd, x=1:K, lty = 2, lwd=2, col='red')
+
+
+rmseMin = min(err)
+kMin = which(err == rmseMin)[1]
+
+rmseMin_wtd = min(err_wtd)
+kMin_wtd = which(err_wtd == rmseMin_wtd)[1]
+
+```
+
+```{r addtl_code, eval=FALSE}
+# additional code not in book:
+
+segments(x0 = 0, x1 = kMin, y0 = rmseMin, col = gray(0.4), 
+         lty = 2, lwd = 2)
+segments(x0 = kMin, x1 = kMin, y0 = 1100,  y1 = rmseMin, 
+         col = grey(0.4), lty = 2, lwd = 2)
+
+#mtext(kMin, side = 1, line = 1, at = kMin, col = grey(0.4))
+text(x = kMin - 2, y = rmseMin + 40, 
+     label = as.character(round(rmseMin)), col = grey(0.4))
+par(oldPar)
+dev.off()
+
+
+estXYk5 = predXY(newSignals = onlineSummary[ , 6:11], 
+                 newAngles = onlineSummary[ , 4], 
+                 offlineSummary, numAngles = 3, k = 5)
+
+calcError(estXYk5, actualXY)
+
+predXY = function(newSignals, newAngles, trainData, 
+                  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]),
+                           trainSS)
+  }
+
+  estXY = lapply(closeXY, function(x)
+                            sapply(x[ , 2:3], 
+                                    function(x) mean(x[1:k])))
+  estXY = do.call("rbind", estXY)
+  return(estXY)
+}
+
+```
+
