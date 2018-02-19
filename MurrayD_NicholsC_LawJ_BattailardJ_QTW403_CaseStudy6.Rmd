@@ -10,7 +10,7 @@ output:
 ---
 
 ```{r setup, include=FALSE, echo=FALSE}
-dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/'
+#dir <- '~/DataScience/SMU_Data_Science/MSDS_QTW/MSDS_7333_CaseStudyUnit6/'
 knitr::opts_knit$set(root.dir = dir)
 ```
 
@@ -167,8 +167,390 @@ Given previous analysis results, we determine the impact of Nolan and Temple Lan
 
 *Analysis of Extraneous MAC Address*
 
-Dennis and Julien (Dennis)
+Nolan and Lang's work called for the exclusion of a second MAC Address access point, that physically resides at the same location as the access point with MAC Address 00:0f:a3:39:dd:cd, was excluded from the analysis presented in their text, as well as the initial *knn* analysis performed in our work.
 
+Prior experience with triangulation of position based on sighting lines in land navigation leads to a general finding that additional measurement points will reduce the area of uncertainty of one's current position, so it could be hypothesized a similar effect will be achieved in an indoor real-time location system that uses signal strength of known-position access points to locate an unknown receiver's physical location.
+
+Visual analysis of the relative signal strength of the two access points reveals a higher degree of certainty for the MAC Address 00:0f:a3:39:e1:c0.  In the visualization below, the top two plots reveal signal strength for the retained MAC Address access point ending in e1:c0 from the angles 90 degrees and 135 degrees.  The bottom plots repeat the exercise, this time for the access point ending in dd:cd, that was removed from the analysis by Nolan and Lang.
+
+```{r Visualization of Comparison of Overlapping Access Points ending in c0 and cd, echo=FALSE}
+
+#This is the one that was dropped
+compareMacList <- c("00:0f:a3:39:dd:cd", "00:0f:a3:39:e1:c0")
+offlineSummary2 = do.call("rbind", signalSummary)     
+
+parCur = par(mfrow = c(2,2), mar = rep(1, 4)) 
+
+mapply(surfaceSS, mac = compareMacList[rep(c(1,2), each=2)], angle = rep(c(90, 135), 2), data = list(data = offlineSummary2))
+
+par(parCur)
+
+#surfaceSS(mac="00:0f:a3:39:e1:c0", angle = 180, data = offlineSummary2)
+
+#Nolan, Deborah; Lang, Duncan Temple. Data Science in R: A Case Studies Approach to Computational Reasoning and Problem Solving (Chapman & Hall/CRC The R Series) (Page 28). CRC Press. Kindle Edition. 
+
+unique(offlineSummary2$orientation)
+
+```
+The darker shades of red reveal the strongest signals in the space from the two access points, with the retained access point giving a strongest signal of greater than -60 db in a relatively concentrated area.  The two bottom plots offer a large area of -50 db strength, but it could be interpreted as more dispersed within the room.  The researchers in this study may have selected one access point over the other as a result of this quality.
+
+To test the decision made by Nolan and Lang, we will perform the *knn* process with three data sets and compare the measurement of error between predicted location and actual location using the same measurement as in the earlier section of work: Sum of Squared Error to judge the performance of each of the three sets of data.
+
+*Exclusion of the MAC Address Ending in dd:cd*
+
+```{r}
+#define the functions I'm going to use in this section
+#predXY takes an input of newSignales, their angles, and returns the estimated positions
+predXY = function(newSignals, newAngles, trainData, 
+                  numAngles = 1, k = 3){
+  
+  closeXY = list(length = nrow(newSignals))
+  
+  for (i in 1:nrow(newSignals)) {
+    trainSS = selectTrain(newAngles[i], trainData, m = numAngles)
+    closeXY[[i]] = findNN(newSignal = as.numeric(newSignals[i, ]),
+                           trainSS)
+  }
+
+  estXY = lapply(closeXY, function(x)
+                            sapply(x[ , 2:3], 
+                                    function(x) mean(x[1:k])))
+  estXY = do.call("rbind", estXY)
+  return(estXY)
+}
+
+#reshapeSS takes the "offline" format of one signal per observation and makes it into the format of
+#onlineCVSummary, where each record is a x,y position, and signal strength of each access point at that location
+#and they hard coded ncol into that.  Who does that?  
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+```
+
+```{r}
+#This case is as the authors worked the problem, excluding dd:cd
+permuteLocs = sample(unique(offlineSummary$posXY))
+
+# to calculate folds, build a matrix with 11 columns and ~15 locations each
+permuteLocs = matrix(permuteLocs, ncol = v, 
+                     nrow = floor(length(permuteLocs)/v))
+
+# get the first validation fold from our offline data
+onlineFold = subset(offlineSummary, posXY %in% permuteLocs[ , 1])
+
+# must re-summarize each fold to match onlineSummary format
+# selecting orientation at random to create our CV folds
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# exclude MAC
+offline2 = offline[ offline$mac != "00:0f:a3:39:dd:cd", ]
+
+keepVars = c("posXY", "posX","posY", "orientation", "angle")
+
+# build CV base from offline data in general
+onlineCVSummary = reshapeSS(offline2, keepVars = keepVars, 
+                            sampleAngle = TRUE)
+
+# an example of one fold
+onlineFold = subset(onlineCVSummary, 
+                    posXY %in% permuteLocs[ , 1])
+
+# this is our training set
+offlineFold = subset(offlineSummary,
+                     posXY %in% permuteLocs[ , -1])
+
+# using both methods with k = 3
+estFold = predXY(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+
+actualFold = onlineFold[ , c("posX", "posY")]
+calcError(estFold, actualFold)
+
+# formally test K out to 20 neighbors
+K = 20
+err = rep(0, K)
+#err_wtd = rep(0,K) # weighted error
+
+for (j in 1:v) {
+  onlineFold = subset(onlineCVSummary, 
+                      posXY %in% permuteLocs[ , j])
+  offlineFold = subset(offlineSummary,
+                       posXY %in% permuteLocs[ , -j])
+  actualFold = onlineFold[ , c("posX", "posY")]
+  
+  for (k in 1:K) {
+    estFold = predXY(newSignals = onlineFold[ , 6:11],
+                     newAngles = onlineFold[ , 4], 
+                     offlineFold, numAngles = 3, k = k)
+    err[k] = err[k] + calcError(estFold, actualFold)
+    
+    #estFold_wtd = predXYwtd(newSignals = onlineFold[ , 6:11], # add in weighted calculations
+    #                 newAngles = onlineFold[ , 4], 
+    #                 offlineFold, numAngles = 3, k = k)
+    #err_wtd[k] = err_wtd[k] + calcError(estFold_wtd, actualFold)
+  }
+}
+
+
+rmseMin = min(err)
+kMin = which(err == rmseMin)[1]
+
+```
+
+Focusing the central access point only to the access point ending in e1:c0 yields a root mean square error of 1077.3 using k=6, the best solution in this case.  The worst performance, 1478, came with a single fold.
+
+
+*Exclusion of the MAC Address Ending in e1:c0*
+```{r}
+
+permuteLocs = sample(unique(offlineSummary$posXY))
+
+# to calculate folds, build a matrix with 11 columns and ~15 locations each
+permuteLocs = matrix(permuteLocs, ncol = v, 
+                     nrow = floor(length(permuteLocs)/v))
+
+# get the first validation fold from our offline data
+onlineFold = subset(offlineSummary, posXY %in% permuteLocs[ , 1])
+
+# must re-summarize each fold to match onlineSummary format
+# selecting orientation at random to create our CV folds
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# exclude MAC
+offline2 = offline[ offline$mac != "00:0f:a3:39:e1:c0", ]
+
+keepVars = c("posXY", "posX","posY", "orientation", "angle")
+
+# build CV base from offline data in general
+onlineCVSummary = reshapeSS(offline2, keepVars = keepVars, 
+                            sampleAngle = TRUE)
+
+# an example of one fold
+onlineFold = subset(onlineCVSummary, 
+                    posXY %in% permuteLocs[ , 1])
+
+# this is our training set
+offlineFold = subset(offlineSummary,
+                     posXY %in% permuteLocs[ , -1])
+
+# using both methods with k = 3
+estFold = predXY(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+
+actualFold = onlineFold[ , c("posX", "posY")]
+calcError(estFold, actualFold)
+
+# formally test K out to 20 neighbors
+K = 20
+err = rep(0, K)
+err_wtd = rep(0,K) # weighted error
+
+for (j in 1:v) {
+  onlineFold = subset(onlineCVSummary, 
+                      posXY %in% permuteLocs[ , j])
+  offlineFold = subset(offlineSummary,
+                       posXY %in% permuteLocs[ , -j])
+  actualFold = onlineFold[ , c("posX", "posY")]
+  
+  for (k in 1:K) {
+    estFold = predXY(newSignals = onlineFold[ , 6:11],
+                     newAngles = onlineFold[ , 4], 
+                     offlineFold, numAngles = 3, k = k)
+    err[k] = err[k] + calcError(estFold, actualFold)
+    
+    #estFold_wtd = predXYwtd(newSignals = onlineFold[ , 6:11], # add in weighted calculations
+    #                 newAngles = onlineFold[ , 4], 
+    #                 offlineFold, numAngles = 3, k = k)
+    #err_wtd[k] = err_wtd[k] + calcError(estFold_wtd, actualFold)
+  }
+}
+
+#pdf(file = "Images/Geo_CVChoiceOfK.pdf", width = 8, height = 6)
+
+rmseMin = min(err)
+kMin = which(err == rmseMin)[1]
+
+
+```
+The use of the address ending in dd:cd, at the exclusion of the address ending in e1:c0, offers a higher error measurement than vice versa - a root mean square error of 3,046.4 using k=9 folds.  The full range of error reaches a maximum of 3,894 from a single fold. 
+
+Reviewing the visualization comparing the two methods, we might hypothesize that the more abrupt drop-off in signal strength offers a more discriminatory set of data to model against than an access point with very slowly decaying signal strength relative to distance.  
+
+*Inclusion of Both MAC Addresses*
+```{r}
+#this one requires special version of reshapeSS
+
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 7,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+permuteLocs = sample(unique(offlineSummary$posXY))
+
+# to calculate folds, build a matrix with 11 columns and ~15 locations each
+permuteLocs = matrix(permuteLocs, ncol = v, 
+                     nrow = floor(length(permuteLocs)/v))
+
+# get the first validation fold from our offline data
+onlineFold = subset(offlineSummary, posXY %in% permuteLocs[ , 1])
+
+# must re-summarize each fold to match onlineSummary format
+# selecting orientation at random to create our CV folds
+reshapeSS = function(data, varSignal = "signal", 
+                     keepVars = c("posXY", "posX","posY"),
+                     sampleAngle = FALSE, 
+                     refs = seq(0, 315, by = 45)) {
+  byLocation =
+    with(data, by(data, list(posXY), 
+                  function(x) {
+                    if (sampleAngle) {
+                      x = x[x$angle == sample(refs, size = 1), ]}
+                    ans = x[1, keepVars]
+                    avgSS = tapply(x[ , varSignal ], x$mac, mean)
+                    y = matrix(avgSS, nrow = 1, ncol = 6,
+                               dimnames = list(ans$posXY,
+                                               names(avgSS)))
+                    cbind(ans, y)
+                  }))
+
+  newDataSS = do.call("rbind", byLocation)
+  return(newDataSS)
+}
+
+# exclude MAC
+offline2 = offline[ offline$mac != "00:0f:a3:39:e1:c0", ]
+
+keepVars = c("posXY", "posX","posY", "orientation", "angle")
+
+# build CV base from offline data in general
+onlineCVSummary = reshapeSS(offline2, keepVars = keepVars, 
+                            sampleAngle = TRUE)
+
+# an example of one fold
+onlineFold = subset(onlineCVSummary, 
+                    posXY %in% permuteLocs[ , 1])
+
+# this is our training set
+offlineFold = subset(offlineSummary,
+                     posXY %in% permuteLocs[ , -1])
+
+# using both methods with k = 3
+estFold = predXY(newSignals = onlineFold[ , 6:11], 
+                 newAngles = onlineFold[ , 4], 
+                 offlineFold, numAngles = 3, k = 3)
+
+
+actualFold = onlineFold[ , c("posX", "posY")]
+calcError(estFold, actualFold)
+
+# formally test K out to 20 neighbors
+K = 20
+err = rep(0, K)
+#err_wtd = rep(0,K) # weighted error
+
+for (j in 1:v) {
+  onlineFold = subset(onlineCVSummary, 
+                      posXY %in% permuteLocs[ , j])
+  offlineFold = subset(offlineSummary,
+                       posXY %in% permuteLocs[ , -j])
+  actualFold = onlineFold[ , c("posX", "posY")]
+  
+  for (k in 1:K) {
+    estFold = predXY(newSignals = onlineFold[ , 6:11],
+                     newAngles = onlineFold[ , 4], 
+                     offlineFold, numAngles = 3, k = k)
+    err[k] = err[k] + calcError(estFold, actualFold)
+    
+    #estFold_wtd = predXYwtd(newSignals = onlineFold[ , 6:11], # add in weighted calculations
+    #                 newAngles = onlineFold[ , 4], 
+    #                 offlineFold, numAngles = 3, k = k)
+    #err_wtd[k] = err_wtd[k] + calcError(estFold_wtd, actualFold)
+  }
+}
+
+
+rmseMin = min(err)
+kMin = which(err == rmseMin)[1]
+
+
+```
+Surprisingly, the inclusion of both MAC Addresses did not improve the performance of the location system.  The best performing application of *knn* using k=12 folds produced a root mean square error of 3,270.0.  The highest error produced is 4,458 on a single fold.
 
 *Weighted K-Nearest Neighbors Implementation*
 
@@ -255,7 +637,7 @@ predXYwtd = function(newSignals, newAngles, trainData,
   }
   return(cbind(base[,2:3], wts))
 }
-
+#Removes the Mac Address that Nolan and Lang excluded from their analysis
 onlineSummaryAdj = onlineSummary[, "X00.0f.a3.39.dd.cd" != names(onlineSummary)]
 head(predXYwtd(onlineSummaryAdj[1,6:11], onlineSummary[,4], offlineSummary, numAngles = 3, k=3))
 
@@ -350,12 +732,23 @@ predXYwtd = function(newSignals, newAngles, trainData,
 
 ## Results
 *MAC Address Conclusions**
+Nolan and Lang's decision to use the MAC Address of 00:0f:a3:39:e1:c0 in their location analysis, and exclude the address of 00:0f:a3:39:dd:cd from the analysis may have been predicated on knowledge of the hardware of the two devices and some difference in the performance.  The visualization seems to lend creedance to this idea - seeing a larger area of higher signal strength offered by dd:cd might suggest a lack of sensitivity between measurement of signal strength at different position if the strength of the signal decays more slowly or operates generally at a higher strength.
+
+The failure of the inclusion of both MAC Addresses to improve error versus the inclusion of only the address of the access point ending in e1:c0 might suggest that the access points need to be dispersed, and generally lower powered if any gain in accuracy is to be gained from adding access points.  
+
+This might offer another line of investigation of the optimum coverage model for a desired confidence level in position.  While it could be assumed that more access points will generally improve the performance of the location system, the placement of each access point is very important in managing the system.  If this access point was placed elsewhere in the environment, the results would likely have been different.
 
 *KNN Conclusions*
 Cory and Dennis for each methods section above since they kind of go hand in hand
 
 ## Conclusion and Future Work
-Dennis and Julien (Julien)
+Real-time location services is among many different concepts that's accelerating with the adoption of Internet of Things (IoT) applications, as well as smart phone adoption.  The applications for the concept are nearly limitless, but also introduces or intensifies many questions that the general public should hold about privacy and fair use of the technology.
+
+Privacy concerns with real-time location services should be deep, given the high level of precision offered with the technology.  When the device is used to track a piece of equipment, one could surmise that the user of the equipment will generally be in possession of the device, and this serves to track to the user throughout their work day.  A recent patent issued to Amazon, for example, is a wrist-wearable device that seeks to track a warehouse employee's hands in real-time.[11]  While we could assume that this is a measure undertaken to reduce errors in the picking, processing and shipping of customers' orders, can the employee also view this as a constant oversight to their day, and creating a constant case of justifiable termination based on comparative productivity against other workers?  While the real-time application of reducing immediate errors may be justifiable at some level, the longer-term data and anonymized data generated could be more useful for designing a better warehouse or picking system that, by design, prevents more errors.  Employees would not see an equal access to this data for their own causes - certainly the company would protect the data against subpoena by binding arbitration agreements in the case of an on-the-job injury.
+
+Real-time location services deployment in retailing could actually serve to reduce the intrusiveness of market-research activities conducted in store.  Firms, including VideoMining, have long used in-store video surveillance to monitor shoppers' activities in store.  While most consumers would generally expect that their activities in public are subject to observation, few shoppers' might consider the existence of firms that will review footage and chart the behavior of individual shoppers from the moment they enter the store, through their shopping activities, until exit and tie this observation back to cash register receipts to gain insight.  This includes classification of the shopper based on their observed and perceived demographics.  Use of a RTLS tag on the shopping cart or basket could bring more anonymity to the process and eliminate the use of the video footage in this activity.
+
+As with most areas of data collection and analysis, good levels of ethics will need to be established for this information.  Formation of this standard will require the input of many parties, but first will require more explanation of the technology and its capability to the public to allow their participation as a stake holder in the formation of standards.  While the collection of data online is far from new, the public understanding of this process has long had a weak foundation.  One could argue that the public's understanding of Real-Time Location Services will have a similarly long learning curve - which will mean sacrificing many years of data and privacy until the capabilities embodied in these systems is more deeply understood.  Likewise, firms must set their own standards for use of this technology and find as clearly delineated standard as possible to avoid perception of black-hat or "bad actor" activities.  
 
 ## References
 [1] http://www.academia.edu/23256794/Dells_Just_In_Time_Inventory_Management_system
@@ -378,6 +771,7 @@ Dennis and Julien (Julien)
 
 [10] https://www.raytheon.com/news/technology_today/2015_i1/facilitymod.html - Raytheon Missile Facility Uses Advanced Technology
 
+[11] https://www.theverge.com/2018/2/1/16958918/amazon-patents-trackable-wristband-warehouse-employees - Amazon Wearable Hand Tracking
 
 ```{r data_prep, eval=FALSE}
 # This is the code from Nolan and Lang Chapter 1

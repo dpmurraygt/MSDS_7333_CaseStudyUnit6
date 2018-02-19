@@ -1,2 +1,0 @@
-"0","list <- c(""00:0f:a3:39:e1:c0"", ""00:0f:a3:39:dd:cd"")"
-"0","offline %>% mutate(signal = as.numeric(signal)) %>% filter(mac %in% list) %>% ggplot(aes(x=signal)) + geom_histogram() + theme_light() + facet_wrap(~mac, ncol=2)"
