@@ -1,3 +1,5 @@
 .gitattributes
 .ds_store
 .Rproj.user
+*_cache/
+*_files/
