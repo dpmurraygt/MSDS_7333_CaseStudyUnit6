@@ -21,4 +21,4 @@ byLoc = with(online,
 
 onlineSummary = do.call("rbind", byLoc)  
 
-write.csv(onlineSummary, file="Data/onlineSummary.csv", row.names=FALSE)
+# write.csv(onlineSummary, file="Data/onlineSummary.csv", row.names=FALSE)

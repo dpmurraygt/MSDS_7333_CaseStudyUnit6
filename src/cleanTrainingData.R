@@ -62,4 +62,4 @@ readData =
   }
 
 offline = readData()
-write.csv(offline, file="Data/offline.csv", row.names=FALSE)
+# write.csv(offline, file="Data/offline.csv", row.names=FALSE)
